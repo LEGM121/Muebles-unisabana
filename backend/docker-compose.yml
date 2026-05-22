@@ -1,0 +1,138 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: proyecto-muebles-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: muebles_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d muebles_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  authservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: authservice
+    working_dir: /src
+    volumes:
+      - ./services/AuthService:/src
+    command: sh -c "dotnet restore AuthService.Api/AuthService.Api.csproj && dotnet run --project AuthService.Api/AuthService.Api.csproj --urls=http://0.0.0.0:8081"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8081:8081"
+
+  catalogservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: catalogservice
+    working_dir: /src
+    volumes:
+      - ./services/CatalogService:/src
+    command: sh -c "dotnet restore CatalogService.Api/CatalogService.Api.csproj && dotnet run --project CatalogService.Api/CatalogService.Api.csproj --urls=http://0.0.0.0:8082"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8082:8082"
+
+  cartservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: cartservice
+    working_dir: /src
+    volumes:
+      - ./services/CartService:/src
+    command: sh -c "dotnet restore CartService.Api/CartService.Api.csproj && dotnet run --project CartService.Api/CartService.Api.csproj --urls=http://0.0.0.0:8083"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DATABASE_URL: Host=postgres;Port=5432;Database=muebles_cart;Username=postgres;Password=postgres
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  orderservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: orderservice
+    working_dir: /src
+    volumes:
+      - ./services/OrderService:/src
+    command: sh -c "dotnet restore OrderService.Api/OrderService.Api.csproj && dotnet run --project OrderService.Api/OrderService.Api.csproj --urls=http://0.0.0.0:8084"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8084:8084"
+
+  paymentservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: paymentservice
+    working_dir: /src
+    volumes:
+      - ./services/PaymentService:/src
+    command: sh -c "dotnet restore PaymentService.Api/PaymentService.Api.csproj && dotnet run --project PaymentService.Api/PaymentService.Api.csproj --urls=http://0.0.0.0:8085"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8085:8085"
+
+  inventoryservice:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: inventoryservice
+    working_dir: /src
+    volumes:
+      - ./services/InventoryService:/src
+    command: sh -c "dotnet restore InventoryService.Api/InventoryService.Api.csproj && dotnet run --project InventoryService.Api/InventoryService.Api.csproj --urls=http://0.0.0.0:8086"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8086:8086"
+
+  gateway:
+    image: node:20-alpine
+    container_name: proyecto-muebles-gateway
+    working_dir: /app
+    volumes:
+      - ./node-api-gateway:/app
+    command: sh -c "npm install && npm start"
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://authservice:8081
+      CATALOG_SERVICE_URL: http://catalogservice:8082
+      CART_SERVICE_URL: http://cartservice:8083
+      ORDER_SERVICE_URL: http://orderservice:8084
+      PAYMENT_SERVICE_URL: http://paymentservice:8085
+      INVENTORY_SERVICE_URL: http://inventoryservice:8086
+    ports:
+      - "8080:8080"
+    depends_on:
+      - authservice
+      - catalogservice
+      - cartservice
+      - orderservice
+      - paymentservice
+      - inventoryservice
+
+  frontend:
+    image: node:20-alpine
+    container_name: proyecto-muebles-frontend
+    working_dir: /app
+    volumes:
+      - ../frontend:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:

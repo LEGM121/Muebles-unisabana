@@ -1,0 +1,13 @@
+# Variables de entorno
+
+## Frontend
+- `VITE_API_URL`
+
+## Node API Gateway
+- `PORT`
+- `CATALOG_SERVICE_URL`
+- `AUTH_SERVICE_URL`
+- `CART_SERVICE_URL`
+- `ORDER_SERVICE_URL`
+- `PAYMENT_SERVICE_URL`
+- `INVENTORY_SERVICE_URL`
