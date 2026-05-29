@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "S5K4Jk2cz/I=",
+  "success": true,
+  "projectFilePath": "/src/PaymentService.Api/PaymentService.Api.csproj",
+  "expectedPackageFiles": [
+    "/root/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.0/microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "/root/.nuget/packages/npgsql/8.0.3/npgsql.8.0.3.nupkg.sha512",
+    "/root/.nuget/packages/questpdf/2024.3.0/questpdf.2024.3.0.nupkg.sha512"
+  ],
+  "logs": []
+}

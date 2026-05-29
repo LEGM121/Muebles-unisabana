@@ -8,7 +8,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("PaymentDb")
     ?? builder.Configuration["DATABASE_URL"]
-    ?? "Host=localhost;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
+    ?? "Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
 
 builder.Services.AddSingleton(new PaymentDb(connectionString));
 
@@ -22,12 +22,21 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/health", () => Results.Ok(new { service = "PaymentService", database = "PostgreSQL" }));
-app.MapGet("/api/payments", (PaymentDb db) => Results.Ok(db.GetPayments()));
+
+// --- AJUSTE EN RUTAS GET PARA EVITAR BLOQUEO DE FRONTEND ---
+app.MapGet("/api/payments", (PaymentDb db) => 
+{
+    var payments = db.GetPayments();
+    return Results.Ok(payments);
+});
+
 app.MapGet("/api/payments/{paymentId:guid}", (Guid paymentId, PaymentDb db) =>
 {
     var payment = db.GetPayment(paymentId);
-    return payment is null ? Results.NotFound() : Results.Ok(payment);
+    // Si no encuentra el pago, devolvemos un NotFound para que el frontend lo maneje
+    return payment is null ? Results.NotFound(new { message = "Pago no encontrado" }) : Results.Ok(payment);
 });
+// ------------------------------------------------------------
 
 app.MapGet("/api/payments/{paymentId:guid}/invoice/pdf", (Guid paymentId, PaymentDb db) =>
 {

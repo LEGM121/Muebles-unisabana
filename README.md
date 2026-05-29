@@ -74,7 +74,7 @@ La integración funcional disponible conecta el frontend con los servicios imple
 - `OrderService` para generar órdenes.
 - `PaymentService` e `InventoryService` quedan expuestos a través del gateway para futuras pantallas del frontend.
 
-El frontend ya no depende del mock de catálogo para el flujo principal y consume el gateway Node en `http://localhost:8080`.
+El frontend ya no depende del mock de catálogo para el flujo principal y consume el gateway Node en `http://localhost:9090`.
 
 ## Levantar en entorno local con Docker
 
@@ -100,7 +100,7 @@ Esto levantará:
 - OrderService en `localhost:8084`
 - PaymentService en `localhost:8085`
 - InventoryService en `localhost:8086`
-- API Gateway en `localhost:8080`
+- API Gateway en `localhost:9090`
 - Frontend en `localhost:5173`
 
 ### Paso 2. Abrir la aplicación

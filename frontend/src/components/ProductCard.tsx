@@ -19,8 +19,8 @@ export function ProductCard({ product, onAddToCart }: Props) {
         </div>
 
         <div className="text-sm text-stone-600">
-          <p><strong>Colores:</strong> {product.colors.join(', ')}</p>
-          <p><strong>Medidas:</strong> {product.measures.join(' / ')}</p>
+          <p><strong>Colores:</strong> {product.colors?.join(', ') ?? 'N/A'}</p>
+          <p><strong>Medidas:</strong> {product.measures?.join(' / ') ?? 'N/A'}</p>
         </div>
 
         <button

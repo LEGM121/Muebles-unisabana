@@ -4,7 +4,7 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("OrderDb")
     ?? builder.Configuration["DATABASE_URL"]
-    ?? "Host=localhost;Port=5432;Database=muebles_orders;Username=postgres;Password=postgres";
+    ?? "Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
 
 builder.Services.AddSingleton(new OrderDb(connectionString));
 
@@ -19,16 +19,58 @@ using (var scope = app.Services.CreateScope())
 
 app.MapGet("/health", () => Results.Ok(new { service = "OrderService", database = "PostgreSQL" }));
 
-app.MapGet("/api/orders", (OrderDb db) => Results.Ok(db.GetOrders()));
-
-app.MapGet("/api/orders/{orderId:guid}", (Guid orderId, OrderDb db) =>
+// --- MODIFICACIONES REALIZADAS ABAJO EN LOS MAPGET ---
+app.MapGet("/api/orders", (HttpContext httpContext, OrderDb db) =>
 {
-    var order = db.GetOrder(orderId);
-    return order is null ? Results.NotFound(new { message = "Orden no encontrada" }) : Results.Ok(order);
+    if (IsAdmin(httpContext))
+    {
+        return Results.Ok(db.GetOrders());
+    }
+
+    var currentUserId = GetCurrentUserId(httpContext);
+    if (currentUserId is null)
+    {
+        // Se permite el acceso al invitado devolviendo lista vacía en lugar de 403
+        return Results.Ok(new List<OrderResponse>());
+    }
+
+    return Results.Ok(db.GetOrdersByCustomerId(currentUserId.Value));
 });
 
-app.MapPost("/api/orders", (CreateOrderRequest request, OrderDb db) =>
+app.MapGet("/api/orders/{orderId:guid}", (HttpContext httpContext, Guid orderId, OrderDb db) =>
 {
+    var order = db.GetOrder(orderId);
+    if (order is null)
+    {
+        return Results.NotFound(new { message = "Orden no encontrada" });
+    }
+
+    if (!IsAdmin(httpContext))
+    {
+        var currentUserId = GetCurrentUserId(httpContext);
+        if (currentUserId is null || currentUserId.Value != order.CustomerId)
+        {
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+    }
+
+    return Results.Ok(order);
+});
+// -----------------------------------------------------
+
+app.MapPost("/api/orders", (HttpContext httpContext, CreateOrderRequest request, OrderDb db) =>
+{
+    var currentUserId = GetCurrentUserId(httpContext);
+    if (currentUserId is null)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (!IsAdmin(httpContext) && currentUserId.Value != request.CustomerId)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
     if (request.CustomerId == Guid.Empty || request.Items is null || request.Items.Count == 0)
     {
         return Results.BadRequest(new { message = "customerId y al menos un item son obligatorios" });
@@ -43,19 +85,54 @@ app.MapPost("/api/orders", (CreateOrderRequest request, OrderDb db) =>
     return Results.Created($"/api/orders/{order.OrderId}", order);
 });
 
-app.MapPut("/api/orders/{orderId:guid}", (Guid orderId, UpdateOrderRequest request, OrderDb db) =>
+app.MapPut("/api/orders/{orderId:guid}", (HttpContext httpContext, Guid orderId, UpdateOrderRequest request, OrderDb db) =>
 {
+    var authorization = RequireAdmin(httpContext);
+    if (authorization is not null)
+    {
+        return authorization;
+    }
+
     var updated = db.UpdateOrder(orderId, request);
     return updated is null ? Results.NotFound(new { message = "Orden no encontrada" }) : Results.Ok(updated);
 });
 
-app.MapDelete("/api/orders/{orderId:guid}", (Guid orderId, OrderDb db) =>
+app.MapDelete("/api/orders/{orderId:guid}", (HttpContext httpContext, Guid orderId, OrderDb db) =>
 {
+    var authorization = RequireAdmin(httpContext);
+    if (authorization is not null)
+    {
+        return authorization;
+    }
+
     var deleted = db.DeleteOrder(orderId);
     return deleted ? Results.Ok(new { message = "Orden eliminada" }) : Results.NotFound(new { message = "Orden no encontrada" });
 });
 
 app.Run();
+
+static Guid? GetCurrentUserId(HttpContext httpContext)
+{
+    var raw = httpContext.Request.Headers["X-User-Id"].FirstOrDefault();
+    return Guid.TryParse(raw, out var userId) ? userId : null;
+}
+
+static string? GetCurrentUserRole(HttpContext httpContext)
+{
+    return httpContext.Request.Headers["X-User-Role"].FirstOrDefault();
+}
+
+static bool IsAdmin(HttpContext httpContext)
+{
+    return string.Equals(GetCurrentUserRole(httpContext), "Admin", StringComparison.OrdinalIgnoreCase);
+}
+
+static IResult? RequireAdmin(HttpContext httpContext)
+{
+    return IsAdmin(httpContext)
+        ? null
+        : Results.StatusCode(StatusCodes.Status403Forbidden);
+}
 
 record CreateOrderRequest(Guid CustomerId, List<CreateOrderItemRequest> Items);
 record CreateOrderItemRequest(Guid ProductId, int Quantity, decimal UnitPrice);
@@ -146,6 +223,40 @@ sealed class OrderDb
             FROM orders
             ORDER BY created_at DESC;
         ";
+
+        var orders = new List<OrderResponse>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var orderId = reader.GetGuid(0);
+            orders.Add(new OrderResponse(
+                orderId,
+                reader.GetGuid(1),
+                reader.GetString(2),
+                reader.GetDecimal(3),
+                reader.GetDecimal(4),
+                reader.GetDecimal(5),
+                reader.GetDateTime(6),
+                reader.GetDateTime(7),
+                GetOrderItems(orderId)));
+        }
+
+        return orders;
+    }
+
+    public List<OrderResponse> GetOrdersByCustomerId(Guid customerId)
+    {
+        using var connection = new NpgsqlConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT order_id, customer_id, status, subtotal, tax, total, created_at, updated_at
+            FROM orders
+            WHERE customer_id = @customerId
+            ORDER BY created_at DESC;
+        ";
+        command.Parameters.AddWithValue("customerId", customerId);
 
         var orders = new List<OrderResponse>();
         using var reader = command.ExecuteReader();

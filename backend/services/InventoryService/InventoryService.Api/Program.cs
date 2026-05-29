@@ -2,12 +2,13 @@ using System.Data;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Corrección: Usamos 'proyecto-muebles-postgres' y 'muebles_db'
 var connectionString = builder.Configuration.GetConnectionString("InventoryDb")
     ?? builder.Configuration["DATABASE_URL"]
-    ?? "Host=localhost;Port=5432;Database=muebles_inventory;Username=postgres;Password=postgres";
+    ?? "Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
 
 builder.Services.AddSingleton(new InventoryDb(connectionString));
-
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 
+interface LoginSuccessPayload {
+  customerId: string;
+  fullName: string;
+  email: string;
+  token: string;
+  role: string;
+}
+
 interface Props {
-  onLoginSuccess?: (payload: { customerId: string; fullName: string; email: string; token: string }) => void;
+  onLoginSuccess?: (payload: LoginSuccessPayload) => void;
 }
 
 export function LoginForm({ onLoginSuccess }: Props) {
@@ -25,7 +33,8 @@ export function LoginForm({ onLoginSuccess }: Props) {
         customerId: response.user.id ?? '',
         fullName: response.user.fullName,
         email: response.user.email,
-        token: response.token
+        token: response.token,
+        role: response.user.role ?? 'Customer'
       });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'No fue posible iniciar sesión');

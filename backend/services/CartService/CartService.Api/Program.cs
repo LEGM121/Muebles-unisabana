@@ -4,7 +4,7 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("CartDb")
     ?? builder.Configuration["DATABASE_URL"]
-    ?? "Host=localhost;Port=5432;Database=muebles_cart;Username=postgres;Password=postgres";
+    ?? "Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
 
 builder.Services.AddSingleton(new CartDb(connectionString));
 
@@ -18,34 +18,104 @@ using (var scope = app.Services.CreateScope())
 
 app.MapGet("/health", () => Results.Ok(new { service = "CartService", database = "PostgreSQL" }));
 
-app.MapGet("/api/cart/{customerId:guid}", (Guid customerId, CartDb db) =>
+// --- INICIO DE LA MODIFICACIÓN (Mantenemos todo tu código anterior) ---
+app.MapGet("/api/cart/{customerId:guid}", (HttpContext httpContext, Guid customerId, CartDb db) =>
 {
+    var currentUserId = GetCurrentUserId(httpContext);
+    
+    // MODIFICACIÓN: Si no es admin y no es el dueño (o es invitado),
+    // en lugar de 403, devolvemos un carrito vacío para no bloquear la carga del frontend.
+    if (!IsAdmin(httpContext) && (currentUserId is null || currentUserId.Value != customerId))
+    {
+        return Results.Ok(new CartResponse(Guid.Empty, customerId, new List<CartItemResponse>(), 0));
+    }
+
     var cart = db.GetOrCreateCart(customerId);
     return Results.Ok(cart);
 });
+// --- FIN DE LA MODIFICACIÓN ---
 
-app.MapPost("/api/cart/items", (AddCartItemRequest request, CartDb db) =>
+app.MapPost("/api/cart/items", (HttpContext httpContext, AddCartItemRequest request, CartDb db) =>
 {
-    if (request.CustomerId == Guid.Empty || request.ProductId == Guid.Empty || request.Quantity <= 0 || request.UnitPrice <= 0)
-    {
-        return Results.BadRequest(new { message = "customerId, productId, quantity y unitPrice son obligatorios" });
+    // 1. Convertimos el string a GUID manualmente aquí dentro
+    // Si el ID que envías desde el frontend NO es un UUID válido, Guid.Parse lanzará error.
+    // Para depurar, si esto falla, sabremos que el ID del frontend está mal formado.
+    
+    Guid customerId;
+    Guid productId;
+
+    try {
+        customerId = Guid.Parse(request.CustomerId);
+        productId = Guid.Parse(request.ProductId);
+    } catch {
+        // Esto captura el error si el ID no es un UUID correcto
+        return Results.BadRequest(new { 
+            message = "Error: El ID enviado desde el frontend no es un UUID válido.",
+            receivedCustomerId = request.CustomerId,
+            receivedProductId = request.ProductId
+        });
     }
 
-    var cart = db.GetOrCreateCart(request.CustomerId);
-    db.AddItem(cart.Id, request.ProductId, request.Quantity, request.UnitPrice, request.ProductName ?? string.Empty);
-    var updatedCart = db.GetCartByCustomerId(request.CustomerId);
-    return Results.Ok(updatedCart);
+    // 2. Validación de negocio
+    if (request.Quantity <= 0 || request.UnitPrice < 0)
+    {
+        return Results.BadRequest(new { message = "Cantidad o precio inválidos." });
+    }
+
+    // 3. Ejecución
+    var cart = db.GetOrCreateCart(customerId);
+    db.AddItem(cart.Id, productId, request.Quantity, request.UnitPrice, request.ProductName ?? string.Empty);
+    
+    return Results.Ok(db.GetCartByCustomerId(customerId));
 });
 
-app.MapDelete("/api/cart/{customerId:guid}/items/{productId:guid}", (Guid customerId, Guid productId, CartDb db) =>
+app.MapDelete("/api/cart/{customerId:guid}/items/{productId:guid}", (HttpContext httpContext, Guid customerId, Guid productId, CartDb db) =>
 {
+    var authorization = RequireOwnerOrAdmin(httpContext, customerId);
+    if (authorization is not null)
+    {
+        return authorization;
+    }
+
     db.RemoveItem(customerId, productId);
     return Results.Ok(new { message = "Item eliminado del carrito" });
 });
 
 app.Run();
 
-record AddCartItemRequest(Guid CustomerId, Guid ProductId, int Quantity, decimal UnitPrice, string? ProductName);
+static Guid? GetCurrentUserId(HttpContext httpContext)
+{
+    var raw = httpContext.Request.Headers["X-User-Id"].FirstOrDefault();
+    return Guid.TryParse(raw, out var userId) ? userId : null;
+}
+
+static string? GetCurrentUserRole(HttpContext httpContext)
+{
+    return httpContext.Request.Headers["X-User-Role"].FirstOrDefault();
+}
+
+static bool IsAdmin(HttpContext httpContext)
+{
+    return string.Equals(GetCurrentUserRole(httpContext), "Admin", StringComparison.OrdinalIgnoreCase);
+}
+
+static IResult? RequireOwnerOrAdmin(HttpContext httpContext, Guid ownerId)
+{
+    if (IsAdmin(httpContext))
+    {
+        return null;
+    }
+
+    var currentUserId = GetCurrentUserId(httpContext);
+    if (currentUserId is null || currentUserId.Value != ownerId)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    return null;
+}
+
+record AddCartItemRequest(string CustomerId, string ProductId, int Quantity, decimal UnitPrice, string? ProductName);
 record CartResponse(Guid Id, Guid CustomerId, List<CartItemResponse> Items, decimal TotalAmount);
 record CartItemResponse(Guid ProductId, string ProductName, int Quantity, decimal UnitPrice, decimal Subtotal);
 record CartRecord(Guid Id, Guid CustomerId);
