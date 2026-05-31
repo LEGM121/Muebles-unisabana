@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api } from '../services/api';
+import { api, sessionStorageService } from '../services/api';
 
 interface LoginSuccessPayload {
   customerId: string;
@@ -28,6 +28,16 @@ export function LoginForm({ onLoginSuccess }: Props) {
 
     try {
       const response = await api.login({ email, password });
+      
+      // GUARDAMOS LA SESIÓN AQUÍ (La corrección necesaria)
+      sessionStorageService.save({
+        id: response.user.id!,
+        email: response.user.email,
+        fullName: response.user.fullName,
+        role: response.user.role ?? 'Customer',
+        token: response.token
+      });
+
       setMessage(`Bienvenido ${response.user.fullName}`);
       onLoginSuccess?.({
         customerId: response.user.id ?? '',

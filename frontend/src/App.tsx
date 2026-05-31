@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ProductCard } from './components/ProductCard';
-import { CategoryFilter } from './components/CategoryFilter';
 import { CartPanel } from './components/CartPanel';
 import { LoginForm } from './components/LoginForm';
 import {
@@ -105,6 +104,7 @@ const EMPTY_ORDER_FORM: OrderFormState = {
   unitPrice: ''
 };
 
+
 const EMPTY_PAYMENT_FORM: PaymentFormState = {
   orderId: '',
   customerId: FALLBACK_CUSTOMER_ID,
@@ -159,6 +159,8 @@ function buildSessionUser(sessionUser: SessionUser | null) {
 
 export function App() {
   const initialSession = buildSessionUser(sessionStorageService.load());
+  console.log("Sesión cargada:", initialSession);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
@@ -197,7 +199,8 @@ export function App() {
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('Authorized');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Tarjeta');
 
-  const isAdmin = isAuthenticated && userRole === 'Admin';
+  //const isAdmin = isAuthenticated && userRole === 'Admin';
+ // console.log("¿Es Admin?", isAdmin, "| Usuario:", userName, "| Rol:", userRole);
 
   const resetFeedback = () => {
     setErrorMessage(null);
@@ -275,18 +278,25 @@ export function App() {
       setCartLoading(false);
     }
   };
+// 1. Carga solo lo que es público al iniciar
+useEffect(() => {
+  loadCatalog();
+  // NO cargues loadOrders, loadPayments, o loadUsers aquí
+  // porque esas funciones necesitan saber qué usuario está logueado.
+}, []); 
 
-  useEffect(() => {
-    void loadCatalog();
-    void loadInventory();
-    void loadOrders();
-    void loadPayments();
-    void loadUsers();
-  }, []);
-
-  useEffect(() => {
-    void loadCart(customerId);
-  }, [customerId]);
+// 2. Este efecto debe ejecutarse SOLO cuando el usuario cambia
+// 2. Carga de datos privados
+useEffect(() => {
+  if (isAuthenticated && customerId) {
+    loadInventory();
+    loadOrders();    // <--- Quita (customerId)
+    loadPayments();  // <--- Quita (customerId)
+    loadUsers();
+    loadCart(customerId); // Esta sí déjala si tu código actual la reconoce
+  }
+}, [isAuthenticated, customerId]);
+ 
 
   const filteredProducts = useMemo(() => {
     return selectedCategory === 'all'
@@ -302,22 +312,40 @@ export function App() {
 
   const totalItems = cart?.items.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
 
-  const addToCart = async (product: Product) => {
+  const addToCart = async (product: any) => {
+  // 1. Depuración: ¡Mira qué está pasando realmente con el producto!
+  console.log("Producto recibido en addToCart:", product);
+
+  const session = sessionStorageService.load();
+  if (!session || !session.id) {
+    alert("Inicia sesión primero.");
+    return;
+  }
+
+  // 2. Validación de seguridad: Aseguramos que el ID exista
+  // Ajusta 'product.id' o 'product.productId' según cómo se llame en tu interface CatalogProduct
+  const pId = product.id || product.productId; 
+
+  if (!pId) {
+    console.error("Error: El producto no tiene un ID válido", product);
+    alert("Error interno: Producto sin ID.");
+    return;
+  }
+
   try {
-    resetFeedback();
-    // Reemplaza el texto anterior por un GUID de prueba válido
-    const updatedCart = await api.addCartItem({
-      customerId: "550e8400-e29b-41d4-a716-446655440000", 
-      productId: (product as any).productId || product.id, 
+    const payload = {
+      customerId: session.id,
+      productId: pId, // Usamos la variable validada
       quantity: 1,
-      unitPrice: Number(product.price), // Asegúrate de que el precio sea un número
+      unitPrice: product.price,
       productName: product.name
-    });
-    setCart(updatedCart);
-    setStatusMessage(`${product.name} agregado al carrito`);
-  } catch (error) {
-    console.error("Error al agregar al carrito:", error);
-    setErrorMessage("No se pudo agregar el producto al carrito.");
+    };
+
+    await api.addCartItem(payload);
+    alert("¡Producto agregado!");
+    await loadCart(session.id);
+  } catch (err) {
+    console.error("Fallo al agregar:", err);
   }
 };
 
@@ -563,25 +591,45 @@ export function App() {
       setErrorMessage(error instanceof Error ? error.message : 'No fue posible eliminar el usuario');
     }
   };
-
   const handleLogout = () => {
-    sessionStorageService.clear();
-    setCustomerId(FALLBACK_CUSTOMER_ID);
-    setUserName('Cliente invitado');
-    setUserEmail('cliente@muebles.com');
-    setUserRole('Guest');
-    setAuthToken('');
     setIsAuthenticated(false);
-    setActiveSection('dashboard');
-    setOrderForm({ ...EMPTY_ORDER_FORM, customerId: FALLBACK_CUSTOMER_ID });
-    setPaymentForm({
-      ...EMPTY_PAYMENT_FORM,
-      customerId: FALLBACK_CUSTOMER_ID,
-      customerName: 'Cliente Demo',
-      customerEmail: 'cliente@muebles.com'
+    setIsAdmin(false);
+    setUserName('');
+    // Aquí puedes añadir más lógica de limpieza si la necesitas
+    console.log("Sesión cerrada");
+};
+   
+const handleLoginSuccess = (payload: { 
+    customerId: string; 
+    fullName: string; 
+    email: string; 
+    token: string; 
+    role: string; 
+}) => {
+    console.log("LOGIN:", payload);
+
+    sessionStorageService.save({
+        id: payload.customerId,
+        fullName: payload.fullName,
+        email: payload.email,
+        role: payload.role,
+        token: payload.token
     });
-    setStatusMessage('Sesión cerrada correctamente');
-  };
+
+    setCustomerId(payload.customerId);
+    setUserName(payload.fullName);
+    setUserEmail(payload.email);
+    setUserRole(payload.role);
+    setAuthToken(payload.token);
+    
+    // --- ESTAS SON LAS LÍNEAS QUE FALTABAN ---
+    setIsAuthenticated(true);
+    setIsAdmin((payload as any).role === 'Admin');
+};
+ 
+
+
+  
 
   const renderAdminContent = () => {
     switch (activeSection) {
@@ -934,48 +982,26 @@ export function App() {
 
         <div className="flex-1 space-y-8">
           <section className="grid gap-8 lg:grid-cols-[240px_1fr_320px]">
-            <aside className="space-y-6">
-              <CategoryFilter selected={selectedCategory} onChange={setSelectedCategory} />
-              <LoginForm
-                onLoginSuccess={({ customerId: loggedCustomerId, fullName, email, token, role }) => {
-                  const nextCustomerId = loggedCustomerId || FALLBACK_CUSTOMER_ID;
-                  const nextUser: SessionUser = {
-                    id: nextCustomerId,
-                    fullName,
-                    email,
-                    token,
-                    role
-                  };
+              <aside className="space-y-6">
+  {/* 1. Login: Solo se ve si NO hay sesión */}
+  {!isAuthenticated && (
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
+      <LoginForm onLoginSuccess={handleLoginSuccess} />
+    </div>
+  )}
 
-                  sessionStorageService.save(nextUser);
-                  setCustomerId(nextCustomerId);
-                  setOrderForm((current) => ({ ...current, customerId: nextCustomerId }));
-                  setPaymentForm((current) => ({
-                    ...current,
-                    customerId: nextCustomerId,
-                    customerName: fullName,
-                    customerEmail: email
-                  }));
-                  setUserName(fullName);
-                  setUserEmail(email);
-                  setUserRole(role);
-                  setAuthToken(token);
-                  setIsAuthenticated(true);
-                  setActiveSection(role === 'Admin' ? 'dashboard' : 'invoices');
-                  setStatusMessage(`Sesión iniciada para ${fullName} (${role})`);
-                }}
-              />
-
-              {isAuthenticated && !isAdmin && (
-                <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
-                  <h3 className="mb-2 text-lg font-semibold">Opciones de cliente</h3>
-                  <p className="text-sm text-stone-600">Puedes explorar el catálogo, agregar productos al carrito, comprar y descargar tu factura PDF cuando exista un pago autorizado.</p>
-                  <p className="mt-2 text-xs text-stone-500">Token de sesión disponible: {authToken ? 'Sí' : 'No'}</p>
-                </div>
-              )}
-            </aside>
-
-            <section>
+  {/* 2. Panel de Admin: Se ve solo si el usuario es Admin Y está autenticado */}
+  {isAuthenticated && isAdmin && (
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
+      <h3 className="text-lg font-semibold">Panel de Administración</h3>
+      <p className="text-sm text-stone-600">
+        Bienvenido, administrador. Tienes acceso total al inventario y gestión de usuarios.
+      </p>
+    </div>
+  )}
+</aside>
+           
+          <section>
               <div className="mb-6 flex items-end justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">Catálogo</h2>

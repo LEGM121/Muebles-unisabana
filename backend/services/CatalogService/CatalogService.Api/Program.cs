@@ -33,14 +33,15 @@ sealed class CatalogDb
 
         using var command = connection.CreateCommand();
         // APUNTAMOS A LA TABLA QUE ME INDICASTE: inventory_products
-        command.CommandText = "SELECT name, price FROM inventory_products;";
+        command.CommandText = "SELECT name, price, product_id FROM inventory_products;";
 
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
             products.Add(new {
                 Name = reader.GetString(0),
-                Price = reader.GetDecimal(1)
+                Price = reader.GetDecimal(1),
+               Id = reader.GetFieldValue<Guid>(2).ToString()
             });
         }
         return products;

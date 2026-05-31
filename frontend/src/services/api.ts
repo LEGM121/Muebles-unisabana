@@ -30,7 +30,6 @@ export interface SessionUser { id: string; email: string; fullName: string; role
 
 const SESSION_STORAGE_KEY = 'app.session';
 
-// --- Función base de peticiones ---
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const session = sessionStorageService.load();
   const headers: HeadersInit = {
@@ -38,15 +37,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.headers ?? {})
   };
 
-  // Solo inyectamos credenciales si hay sesión activa
-  if (session) {
+  if (session && session.id) {
     headers['X-User-Id'] = session.id;
-    headers['X-User-Role'] = session.role;
+    headers['X-User-Role'] = session.role || 'Customer';
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
 
-  // Si el servidor nos deniega el acceso (403), no rompemos la app, devolvemos null
   if (response.status === 403) {
     console.warn(`Acceso restringido: ${path}`);
     return null as any;
@@ -62,17 +59,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const sessionStorageService = {
-  save(user: SessionUser) { localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user)); },
+  save(user: SessionUser) { sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user)); },
   load(): SessionUser | null {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!raw) return null;
     try { return JSON.parse(raw) as SessionUser; }
-    catch { localStorage.removeItem(SESSION_STORAGE_KEY); return null; }
+    catch { sessionStorage.removeItem(SESSION_STORAGE_KEY); return null; }
   },
-  clear() { localStorage.removeItem(SESSION_STORAGE_KEY); }
+  clear() { sessionStorage.removeItem(SESSION_STORAGE_KEY); }
 };
 
-// --- API Methods ---
 export const api = {
   login(payload: AuthLoginRequest) { return request<AuthLoginResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }); },
   getCatalog() { return request<CatalogProduct[]>('/api/catalog'); },

@@ -2,6 +2,12 @@ using System.Data;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
+// --- AGREGA ESTO AQUÍ ---
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+});
+// ------------------------
 var connectionString = builder.Configuration.GetConnectionString("CartDb")
     ?? builder.Configuration["DATABASE_URL"]
     ?? "Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres";
