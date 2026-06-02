@@ -87,6 +87,18 @@ app.MapDelete("/api/cart/{customerId:guid}/items/{productId:guid}", (HttpContext
     return Results.Ok(new { message = "Item eliminado del carrito" });
 });
 
+app.MapDelete("/api/cart/{customerId:guid}/items", (HttpContext httpContext, Guid customerId, CartDb db) =>
+{
+    var authorization = RequireOwnerOrAdmin(httpContext, customerId);
+    if (authorization is not null)
+    {
+        return authorization;
+    }
+
+    db.ClearCart(customerId);
+    return Results.Ok(db.GetOrCreateCart(customerId));
+});
+
 app.Run();
 
 static Guid? GetCurrentUserId(HttpContext httpContext)
@@ -234,6 +246,24 @@ sealed class CartDb
         command.ExecuteNonQuery();
     }
 
+    public void ClearCart(Guid customerId)
+    {
+        using var connection = new NpgsqlConnection(_connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            DELETE FROM cart_items
+            WHERE cart_id = (SELECT id FROM carts WHERE customer_id = @customerId);
+
+            UPDATE carts
+            SET updated_at = NOW()
+            WHERE customer_id = @customerId;
+        ";
+        command.Parameters.AddWithValue("customerId", customerId);
+        command.ExecuteNonQuery();
+    }
+
     public CartResponse? GetCartByCustomerId(Guid customerId)
     {
         using var connection = new NpgsqlConnection(_connectionString);
@@ -280,7 +310,9 @@ sealed class CartDb
             }
         }
 
-        var total = items.Sum(item => item.Subtotal);
+        var subtotal = items.Sum(item => item.Subtotal);
+        var tax = Math.Round(subtotal * 0.16m, 2, MidpointRounding.AwayFromZero);
+        var total = subtotal + tax;
         return new CartResponse(cartId, customerId, items, total);
     }
 }

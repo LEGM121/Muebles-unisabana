@@ -8,6 +8,7 @@ import {
   type CartResponse,
   type CreateInventoryProductRequest,
   type CreateOrderRequest,
+  type InvoiceResponse,
   type InventoryProduct,
   type OrderResponse,
   type PaymentAuthorizeRequest,
@@ -160,7 +161,7 @@ function buildSessionUser(sessionUser: SessionUser | null) {
 export function App() {
   const initialSession = buildSessionUser(sessionStorageService.load());
   console.log("Sesión cargada:", initialSession);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(initialSession.isAuthenticated && initialSession.role === 'Admin');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
@@ -175,6 +176,8 @@ export function App() {
   const [cartLoading, setCartLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cart, setCart] = useState<CartResponse | null>(null);
+  const [latestInvoice, setLatestInvoice] = useState<InvoiceResponse | null>(null);
+  const [latestPaymentId, setLatestPaymentId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string>(initialSession.customerId);
   const [userName, setUserName] = useState<string>(initialSession.fullName);
   const [userEmail, setUserEmail] = useState<string>(initialSession.email);
@@ -205,6 +208,35 @@ export function App() {
   const resetFeedback = () => {
     setErrorMessage(null);
     setStatusMessage(null);
+  };
+
+  const resetUserScopedState = () => {
+    setCart(null);
+    setLatestInvoice(null);
+    setLatestPaymentId(null);
+    setOrders([]);
+    setPayments([]);
+    setUsers([]);
+    setSelectedOrderId(null);
+    setSelectedOrderStatus('Created');
+    setSelectedPaymentId(null);
+    setSelectedPaymentStatus('Authorized');
+    setSelectedPaymentMethod('Tarjeta');
+    setCheckoutLoading(false);
+    setCartLoading(false);
+    setOrdersLoading(false);
+    setPaymentsLoading(false);
+    setUsersLoading(false);
+  };
+
+  const syncFormsWithSession = (session: ReturnType<typeof buildSessionUser>) => {
+    setOrderForm({ ...EMPTY_ORDER_FORM, customerId: session.customerId });
+    setPaymentForm({
+      ...EMPTY_PAYMENT_FORM,
+      customerId: session.customerId,
+      customerName: session.fullName === 'Cliente invitado' ? 'Cliente Demo' : session.fullName,
+      customerEmail: session.email
+    });
   };
 
   const loadCatalog = async () => {
@@ -365,13 +397,51 @@ useEffect(() => {
           unitPrice: item.unitPrice
         }))
       });
-      setStatusMessage(`Orden ${order.orderId} creada con estado ${order.status}`);
+
+      const checkoutCustomerName = userName === 'Cliente invitado' ? 'Cliente Demo' : userName;
+      const checkoutCustomerEmail = userEmail;
+      const checkoutPaymentMethod = 'Tarjeta';
+
+      const payment = await api.authorizePayment({
+        orderId: order.orderId,
+        customerId,
+        customerName: checkoutCustomerName,
+        customerEmail: checkoutCustomerEmail,
+        paymentMethod: checkoutPaymentMethod,
+        items: cart.items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        }))
+      });
+
+      setLatestInvoice({
+        ...payment.invoice,
+        customerId,
+        customerName: checkoutCustomerName,
+        customerEmail: checkoutCustomerEmail,
+        paymentMethod: checkoutPaymentMethod
+      });
+      setLatestPaymentId(payment.paymentId);
+      setStatusMessage(`Pago realizado correctamente. Tu factura ${payment.invoice.invoiceNumber} ya esta disponible.`);
+      const clearedCart = await api.clearCart(customerId);
+      setCart(clearedCart);
       await loadOrders();
+      await loadPayments();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'No fue posible crear la orden');
+      setErrorMessage(error instanceof Error ? error.message : 'No fue posible pagar y generar la factura');
     } finally {
       setCheckoutLoading(false);
     }
+  };
+
+  const downloadLatestInvoice = () => {
+    if (!latestPaymentId) {
+      return;
+    }
+
+    window.open(api.getInvoicePdfUrl(latestPaymentId), '_blank', 'noopener,noreferrer');
   };
 
   const submitInventory = async () => {
@@ -559,7 +629,8 @@ useEffect(() => {
         await api.createUser({
           email: userForm.email,
           fullName: userForm.fullName,
-          password: userForm.password
+          password: userForm.password,
+          role: userForm.role
         });
         setStatusMessage('Usuario creado correctamente');
       }
@@ -592,10 +663,20 @@ useEffect(() => {
     }
   };
   const handleLogout = () => {
+    sessionStorageService.clear();
+    const guestSession = buildSessionUser(null);
+
+    resetFeedback();
+    resetUserScopedState();
     setIsAuthenticated(false);
     setIsAdmin(false);
-    setUserName('');
-    // Aquí puedes añadir más lógica de limpieza si la necesitas
+    setCustomerId(guestSession.customerId);
+    setUserName(guestSession.fullName);
+    setUserEmail(guestSession.email);
+    setUserRole(guestSession.role);
+    setAuthToken(guestSession.token);
+    setActiveSection('dashboard');
+    syncFormsWithSession(guestSession);
     console.log("Sesión cerrada");
 };
    
@@ -607,6 +688,9 @@ const handleLoginSuccess = (payload: {
     role: string; 
 }) => {
     console.log("LOGIN:", payload);
+
+    resetFeedback();
+    resetUserScopedState();
 
     sessionStorageService.save({
         id: payload.customerId,
@@ -621,6 +705,15 @@ const handleLoginSuccess = (payload: {
     setUserEmail(payload.email);
     setUserRole(payload.role);
     setAuthToken(payload.token);
+    setActiveSection('dashboard');
+    syncFormsWithSession({
+        customerId: payload.customerId,
+        fullName: payload.fullName,
+        email: payload.email,
+        role: payload.role,
+        token: payload.token,
+        isAuthenticated: true
+    });
     
     // --- ESTAS SON LAS LÍNEAS QUE FALTABAN ---
     setIsAuthenticated(true);
@@ -646,10 +739,23 @@ const handleLoginSuccess = (payload: {
               <input aria-label="Proveedor producto" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Proveedor" value={inventoryForm.supplierName} onChange={(event) => setInventoryForm((current) => ({ ...current, supplierName: event.target.value }))} />
               <input aria-label="Stock disponible" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Disponible" type="number" value={inventoryForm.available} onChange={(event) => setInventoryForm((current) => ({ ...current, available: event.target.value }))} />
               <input aria-label="Stock reservado" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Reservado" type="number" value={inventoryForm.reserved} onChange={(event) => setInventoryForm((current) => ({ ...current, reserved: event.target.value }))} />
-              <input aria-label="Imagen producto" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Imagen URL" value={inventoryForm.image} onChange={(event) => setInventoryForm((current) => ({ ...current, image: event.target.value }))} />
+              <input aria-label="Imagen producto" className="rounded-lg border border-stone-300 px-3 py-2 text-sm md:col-span-2" placeholder="URL de imagen del producto" value={inventoryForm.image} onChange={(event) => setInventoryForm((current) => ({ ...current, image: event.target.value }))} />
               <input aria-label="Colores producto" className="rounded-lg border border-stone-300 px-3 py-2 text-sm md:col-span-2" placeholder="Colores separados por coma" value={inventoryForm.colors} onChange={(event) => setInventoryForm((current) => ({ ...current, colors: event.target.value }))} />
               <input aria-label="Medidas producto" className="rounded-lg border border-stone-300 px-3 py-2 text-sm md:col-span-2" placeholder="Medidas separadas por coma" value={inventoryForm.measures} onChange={(event) => setInventoryForm((current) => ({ ...current, measures: event.target.value }))} />
             </div>
+            {inventoryForm.image && (
+              <div className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-stone-200">
+                <img
+                  className="h-20 w-28 rounded-lg object-cover"
+                  src={inventoryForm.image}
+                  alt="Vista previa producto"
+                  onError={(event) => {
+                    event.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
+                  }}
+                />
+                <p className="text-sm text-stone-600">Vista previa de la imagen que se vera en el catalogo.</p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <button type="button" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700" onClick={() => void submitInventory()}>
                 {inventoryForm.productId ? 'Guardar producto' : 'Crear producto'}
@@ -679,7 +785,19 @@ const handleLoginSuccess = (payload: {
                     <tbody className="divide-y divide-stone-100 bg-white">
                       {filteredInventory.map((product) => (
                         <tr key={product.productId}>
-                          <td className="px-4 py-3">{product.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <img
+                                className="h-12 w-16 rounded-lg object-cover"
+                                src={product.image || DEFAULT_PRODUCT_IMAGE}
+                                alt={product.name}
+                                onError={(event) => {
+                                  event.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
+                                }}
+                              />
+                              <span>{product.name}</span>
+                            </div>
+                          </td>
                           <td className="px-4 py-3">{product.sku}</td>
                           <td className="px-4 py-3">{product.category}</td>
                           <td className="px-4 py-3">{formatCurrency(product.price)}</td>
@@ -981,7 +1099,8 @@ const handleLoginSuccess = (payload: {
         )}
 
         <div className="flex-1 space-y-8">
-          <section className="grid gap-8 lg:grid-cols-[240px_1fr_320px]">
+          <section className={`grid gap-8 ${isAuthenticated ? 'lg:grid-cols-[1fr_320px]' : 'lg:grid-cols-[240px_1fr_320px]'}`}>
+              {!isAuthenticated && (
               <aside className="space-y-6">
   {/* 1. Login: Solo se ve si NO hay sesión */}
   {!isAuthenticated && (
@@ -1000,12 +1119,12 @@ const handleLoginSuccess = (payload: {
     </div>
   )}
 </aside>
+              )}
            
           <section>
               <div className="mb-6 flex items-end justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">Catálogo</h2>
-                  <p className="text-sm text-stone-500">Filtra por categoría y agrega productos al carrito.</p>
                 </div>
               </div>
 
@@ -1028,13 +1147,23 @@ const handleLoginSuccess = (payload: {
                 )}
             </section>
 
-            <aside>
+            <aside className="space-y-6">
               <CartPanel
                 cart={cart}
                 loading={cartLoading}
                 onCheckout={() => void handleCheckout()}
                 checkoutDisabled={checkoutLoading || !cart || cart.items.length === 0}
+                invoice={latestInvoice}
+                onDownloadInvoice={downloadLatestInvoice}
               />
+              {isAuthenticated && isAdmin && (
+                <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
+                  <h3 className="text-lg font-semibold">Panel de AdministraciÃ³n</h3>
+                  <p className="text-sm text-stone-600">
+                    Bienvenido, administrador. Tienes acceso total al inventario y gestiÃ³n de usuarios.
+                  </p>
+                </div>
+              )}
             </aside>
           </section>
 

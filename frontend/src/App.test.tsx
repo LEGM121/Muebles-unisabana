@@ -92,8 +92,31 @@ let payments = [
   }
 ];
 
+let cartItems = [
+  {
+    productId: 'prod-1',
+    productName: 'SofÃ¡ Oslo',
+    quantity: 1,
+    unitPrice: 2499,
+    subtotal: 2499
+  }
+];
+
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status }));
+}
+
+function calculateTotals(subtotal: number) {
+  const tax = Number((subtotal * 0.16).toFixed(2));
+  return {
+    subtotal,
+    tax,
+    total: subtotal + tax
+  };
+}
+
+function calculateCartTotal() {
+  return calculateTotals(cartItems.reduce((total, item) => total + item.subtotal, 0)).total;
 }
 
 beforeEach(() => {
@@ -179,6 +202,15 @@ beforeEach(() => {
         tax: 399.84,
         total: 2898.84
       }
+    }
+  ];
+  cartItems = [
+    {
+      productId: 'prod-1',
+      productName: 'SofÃ¡ Oslo',
+      quantity: 1,
+      unitPrice: 2499,
+      subtotal: 2499
     }
   ];
 
@@ -271,13 +303,14 @@ beforeEach(() => {
 
     if (url.includes('/api/orders') && method === 'POST') {
       const payload = JSON.parse(String(init?.body ?? '{}'));
+      const totals = calculateTotals(Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity));
       const created = {
         orderId: 'order-2',
         customerId: payload.customerId,
         status: 'Created',
-        subtotal: Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity),
-        tax: 399.84,
-        total: 2898.84,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        total: totals.total,
         createdAt: '2026-05-23T10:00:00Z',
         updatedAt: '2026-05-23T10:00:00Z',
         items: [
@@ -311,6 +344,7 @@ beforeEach(() => {
 
     if (url.includes('/api/payments/authorize') && method === 'POST') {
       const payload = JSON.parse(String(init?.body ?? '{}'));
+      const totals = calculateTotals(Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity));
       const created = {
         paymentId: 'payment-2',
         orderId: payload.orderId,
@@ -319,9 +353,9 @@ beforeEach(() => {
         customerEmail: payload.customerEmail,
         paymentMethod: payload.paymentMethod,
         status: 'Authorized',
-        subtotal: Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity),
-        tax: 399.84,
-        total: 2898.84,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        total: totals.total,
         createdAt: '2026-05-23T10:00:00Z',
         invoice: {
           invoiceNumber: 'FAC-20260523-BBBB2222',
@@ -334,9 +368,9 @@ beforeEach(() => {
               subtotal: Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity)
             }
           ],
-          subtotal: Number(payload.items[0].unitPrice) * Number(payload.items[0].quantity),
-          tax: 399.84,
-          total: 2898.84
+          subtotal: totals.subtotal,
+          tax: totals.tax,
+          total: totals.total
         }
       };
       payments = [...payments, created];
@@ -359,6 +393,15 @@ beforeEach(() => {
     }
 
     if (url.includes('/api/cart/items') && method === 'POST') {
+      cartItems = [
+        {
+          productId: 'prod-1',
+          productName: 'SofÃ¡ Oslo',
+          quantity: 1,
+          unitPrice: 2499,
+          subtotal: 2499
+        }
+      ];
       return jsonResponse({
         id: 'cart-1',
         customerId: '11111111-1111-1111-1111-111111111111',
@@ -371,12 +414,32 @@ beforeEach(() => {
             subtotal: 2499
           }
         ],
-        totalAmount: 2499
+        totalAmount: calculateCartTotal()
+      });
+    }
+
+    if (/\/api\/cart\/[^/]+\/items$/.test(url) && method === 'DELETE') {
+      cartItems = [];
+      return jsonResponse({
+        id: 'cart-1',
+        customerId: '11111111-1111-1111-1111-111111111111',
+        items: cartItems,
+        totalAmount: 0
       });
     }
 
     if (url.includes('/api/cart/') && method === 'DELETE') {
+      cartItems = [];
       return jsonResponse({ message: 'Item eliminado del carrito' });
+    }
+
+    if (url.includes('/api/cart/') && method === 'GET') {
+      return jsonResponse({
+        id: 'cart-1',
+        customerId: '11111111-1111-1111-1111-111111111111',
+        items: cartItems,
+        totalAmount: calculateCartTotal()
+      });
     }
 
     if (url.includes('/api/cart/')) {
@@ -392,7 +455,7 @@ beforeEach(() => {
             subtotal: 2499
           }
         ],
-        totalAmount: 2499
+        totalAmount: calculateCartTotal()
       });
     }
 

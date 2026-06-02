@@ -19,6 +19,8 @@ export function CartPanel({
 }: Props) {
   const items = cart?.items ?? [];
   const total = cart?.totalAmount ?? 0;
+  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const tax = Math.max(total - subtotal, 0);
 
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
@@ -34,15 +36,27 @@ export function CartPanel({
         ))}
       </div>
       <div className="mt-6 border-t border-stone-200 pt-4">
-        <div className="mb-4 flex items-center justify-between font-semibold">
+        <div className="mb-2 flex items-center justify-between text-sm text-stone-600">
+          <span>Subtotal</span>
+          <span>${subtotal.toFixed(2)}</span>
+        </div>
+        <div className="mb-4 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+          <div className="flex items-center justify-between text-sm font-medium text-sky-900">
+            <span>IVA 16%</span>
+            <span>${tax.toFixed(2)}</span>
+          </div>
+          <p className="mt-1 text-xs text-sky-700">Impuesto incluido en el total a pagar</p>
+        </div>
+        <div className="mb-4 flex items-center justify-between border-t border-stone-200 pt-4 font-semibold">
           <span>Total</span>
-          <span>${total}</span>
+          <span>${total.toFixed(2)}</span>
         </div>
         <button
           className="w-full rounded-xl bg-stone-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-400"
           onClick={onCheckout}
           disabled={checkoutDisabled}
           type="button"
+          id="pay-generate-invoice"
         >
           Pagar y generar factura
         </button>
@@ -50,7 +64,9 @@ export function CartPanel({
 
       {invoice && (
         <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <p className="font-semibold">Factura generada: {invoice.invoiceNumber}</p>
+          <p className="text-base font-semibold">Pago realizado correctamente</p>
+          <p className="mt-1">Gracias por tu compra. Tu factura ya está lista para descargar.</p>
+          <p className="mt-3 font-semibold">Factura generada: {invoice.invoiceNumber}</p>
           <p>Cliente: {invoice.customerName}</p>
           <p>Total pagado: ${invoice.total.toFixed(2)}</p>
           <button

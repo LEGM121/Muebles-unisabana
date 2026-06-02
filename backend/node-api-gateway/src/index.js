@@ -52,9 +52,40 @@ async function proxyJson(req, res, baseUrl, path, init = {}) {
   }
 }
 
+async function proxyBinary(req, res, baseUrl, path, init = {}) {
+  try {
+    const targetUrl = `${baseUrl}${path}`;
+    const headers = {
+      'X-User-Id': req.headers['x-user-id'] || 'guest-user',
+      'X-User-Role': req.headers['x-user-role'] || 'Customer',
+      ...(init.headers || {})
+    };
+
+    const upstreamResponse = await fetch(targetUrl, {
+      method: init.method || req.method,
+      headers
+    });
+
+    const contentType = upstreamResponse.headers.get('content-type');
+    const contentDisposition = upstreamResponse.headers.get('content-disposition');
+    const contentLength = upstreamResponse.headers.get('content-length');
+    const body = Buffer.from(await upstreamResponse.arrayBuffer());
+
+    res.status(upstreamResponse.status);
+    if (contentType) res.setHeader('Content-Type', contentType);
+    if (contentDisposition) res.setHeader('Content-Disposition', contentDisposition);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    return res.send(body);
+  } catch (error) {
+    console.error(`Error de Gateway hacia ${baseUrl}${path}:`, error.message);
+    return res.status(502).json({ message: 'Error de comunicaciÃ³n', detail: error.message });
+  }
+}
+
 // --- RUTAS AUTENTICACIÓN ---
 app.post('/api/auth/login', (req, res) => proxyJson(req, res, services.auth, '/api/auth/login', { method: 'POST', body: JSON.stringify(req.body) }));
 app.post('/api/auth/register', (req, res) => proxyJson(req, res, services.auth, '/api/auth/register', { method: 'POST', body: JSON.stringify(req.body) }));
+app.post('/api/auth/forgot-password', (req, res) => proxyJson(req, res, services.auth, '/api/auth/forgot-password', { method: 'POST', body: JSON.stringify(req.body) }));
 app.get('/api/auth/users', (req, res) => proxyJson(req, res, services.auth, '/api/auth/users'));
 app.put('/api/auth/users/:id', (req, res) => proxyJson(req, res, services.auth, `/api/auth/users/${req.params.id}`, { method: 'PUT', body: JSON.stringify(req.body) }));
 app.delete('/api/auth/users/:id', (req, res) => proxyJson(req, res, services.auth, `/api/auth/users/${req.params.id}`, { method: 'DELETE' }));
@@ -65,6 +96,7 @@ app.get('/api/catalog', (req, res) => proxyJson(req, res, services.catalog, '/ap
 // --- RUTAS CARRITO ---
 app.get('/api/cart/:customerId', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}`));
 app.post('/api/cart/items', (req, res) => proxyJson(req, res, services.cart, '/api/cart/items', { method: 'POST', body: JSON.stringify(req.body) }));
+app.delete('/api/cart/:customerId/items', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items`, { method: 'DELETE' }));
 app.delete('/api/cart/:customerId/items/:productId', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items/${req.params.productId}`, { method: 'DELETE' }));
 
 // --- RUTAS ÓRDENES ---
@@ -77,7 +109,7 @@ app.delete('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.or
 // --- RUTAS PAGOS ---
 app.get('/api/payments', (req, res) => proxyJson(req, res, services.payments, '/api/payments'));
 app.get('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`));
-app.get('/api/payments/:paymentId/invoice/pdf', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}/invoice/pdf`));
+app.get('/api/payments/:paymentId/invoice/pdf', (req, res) => proxyBinary(req, res, services.payments, `/api/payments/${req.params.paymentId}/invoice/pdf`));
 app.post('/api/payments/authorize', (req, res) => proxyJson(req, res, services.payments, '/api/payments/authorize', { method: 'POST', body: JSON.stringify(req.body) }));
 app.put('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`, { method: 'PUT', body: JSON.stringify(req.body) }));
 app.delete('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`, { method: 'DELETE' }));

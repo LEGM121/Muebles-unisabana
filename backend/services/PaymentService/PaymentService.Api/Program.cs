@@ -1,4 +1,5 @@
 using Npgsql;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -79,7 +80,7 @@ record AuthorizePaymentRequest(Guid OrderId, string CustomerId, string CustomerN
 record PaymentItemRequest(Guid ProductId, string ProductName, int Quantity, decimal UnitPrice);
 record UpdatePaymentRequest(string Status, string PaymentMethod);
 record PaymentResponse(Guid PaymentId, Guid OrderId, string CustomerId, string CustomerName, string CustomerEmail, string PaymentMethod, string Status, decimal Subtotal, decimal Tax, decimal Total, DateTime CreatedAt, InvoiceResponse Invoice);
-record InvoiceResponse(Guid InvoiceId, string InvoiceNumber, DateTime IssuedAt, decimal Subtotal, decimal Tax, decimal Total, List<InvoiceItemResponse> Items);
+record InvoiceResponse(Guid InvoiceId, Guid PaymentId, Guid OrderId, string CustomerId, string CustomerName, string CustomerEmail, string PaymentMethod, string InvoiceNumber, DateTime IssuedAt, decimal Subtotal, decimal Tax, decimal Total, List<InvoiceItemResponse> Items);
 record InvoiceItemResponse(string ProductName, int Quantity, decimal UnitPrice, decimal Subtotal);
 
 sealed class PaymentDb
@@ -341,9 +342,11 @@ sealed class PaymentDb
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT invoice_id, invoice_number, issued_at, subtotal, tax, total
-            FROM invoices
-            WHERE payment_id = @paymentId;
+            SELECT i.invoice_id, i.payment_id, p.order_id, p.customer_id, p.customer_name, p.customer_email, p.payment_method,
+                   i.invoice_number, i.issued_at, i.subtotal, i.tax, i.total
+            FROM invoices i
+            INNER JOIN payments p ON p.payment_id = i.payment_id
+            WHERE i.payment_id = @paymentId;
         ";
         command.Parameters.AddWithValue("paymentId", paymentId);
 
@@ -356,11 +359,17 @@ sealed class PaymentDb
         var invoiceId = reader.GetGuid(0);
         return new InvoiceResponse(
             invoiceId,
-            reader.GetString(1),
-            reader.GetDateTime(2),
-            reader.GetDecimal(3),
-            reader.GetDecimal(4),
-            reader.GetDecimal(5),
+            reader.GetGuid(1),
+            reader.GetGuid(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.GetString(7),
+            reader.GetDateTime(8),
+            reader.GetDecimal(9),
+            reader.GetDecimal(10),
+            reader.GetDecimal(11),
             GetInvoiceItems(invoiceId));
     }
 
@@ -395,22 +404,49 @@ sealed class PaymentDb
 
 static class InvoicePdfBuilder
 {
+    private static bool fontsRegistered;
+
     public static byte[] Generate(InvoiceResponse invoice)
     {
+        EnsureFontsRegistered();
+
         return Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Margin(30);
                 page.Size(PageSizes.A4);
-                page.Header().Text($"Factura {invoice.InvoiceNumber}").FontSize(20).Bold();
+                page.Margin(36);
+                page.DefaultTextStyle(text => text.FontFamily("Lato").FontSize(10).FontColor(Colors.Grey.Darken4));
+                page.Header().Column(header =>
+                {
+                    header.Item().Text("Proyecto Muebles Modernos").FontSize(18).Bold().FontColor(Colors.Blue.Darken3);
+                    header.Item().Text($"Factura {invoice.InvoiceNumber}").FontSize(14).FontColor(Colors.Grey.Darken2);
+                    header.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                });
                 page.Content().Column(column =>
                 {
-                    column.Spacing(10);
-                    column.Item().Text($"Fecha de emisión: {invoice.IssuedAt:yyyy-MM-dd HH:mm:ss} UTC");
-                    column.Item().Text($"Subtotal: ${invoice.Subtotal:N2}");
-                    column.Item().Text($"IVA: ${invoice.Tax:N2}");
-                    column.Item().Text($"Total: ${invoice.Total:N2}");
+                    column.Spacing(14);
+                    column.Item().PaddingTop(16).Background(Colors.Grey.Lighten4).Padding(12).Column(details =>
+                    {
+                        details.Spacing(5);
+                        details.Item().Text("Datos de la compra").FontSize(12).Bold().FontColor(Colors.Grey.Darken4);
+                        details.Item().Text($"Fecha de emision: {invoice.IssuedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                        details.Item().Text($"Orden: {invoice.OrderId}");
+                        details.Item().Text($"Pago: {invoice.PaymentId}");
+                        details.Item().Text($"Cliente: {ValueOrDefault(invoice.CustomerName)}");
+                        details.Item().Text($"Correo: {ValueOrDefault(invoice.CustomerEmail)}");
+                        details.Item().Text($"Metodo de pago: {ValueOrDefault(invoice.PaymentMethod)}");
+                    });
+                    column.Item().Background(Colors.Blue.Lighten5).Padding(12).Row(row =>
+                    {
+                        row.RelativeItem().Column(totals =>
+                        {
+                            totals.Spacing(4);
+                            totals.Item().Text($"Subtotal: ${invoice.Subtotal:N2}");
+                            totals.Item().Text($"IVA 16%: ${invoice.Tax:N2}");
+                        });
+                        row.ConstantItem(160).AlignRight().Text($"Total: ${invoice.Total:N2}").FontSize(16).Bold().FontColor(Colors.Blue.Darken3);
+                    });
                     column.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
@@ -423,25 +459,48 @@ static class InvoicePdfBuilder
 
                         table.Header(header =>
                         {
-                            header.Cell().Element(CellStyle).Text("Producto").Bold();
-                            header.Cell().Element(CellStyle).Text("Cantidad").Bold();
-                            header.Cell().Element(CellStyle).Text("Precio").Bold();
-                            header.Cell().Element(CellStyle).Text("Subtotal").Bold();
+                            header.Cell().Element(HeaderCellStyle).Text("Producto").Bold().FontColor(Colors.White);
+                            header.Cell().Element(HeaderCellStyle).Text("Cantidad").Bold().FontColor(Colors.White);
+                            header.Cell().Element(HeaderCellStyle).Text("Precio").Bold().FontColor(Colors.White);
+                            header.Cell().Element(HeaderCellStyle).Text("Subtotal").Bold().FontColor(Colors.White);
                         });
 
-                        foreach (var item in invoice.Items)
+                        foreach (var item in invoice.Items.DefaultIfEmpty(new InvoiceItemResponse("Sin productos registrados", 0, 0, 0)))
                         {
-                            table.Cell().Element(CellStyle).Text(item.ProductName);
+                            table.Cell().Element(CellStyle).Text(ValueOrDefault(item.ProductName));
                             table.Cell().Element(CellStyle).Text(item.Quantity.ToString());
                             table.Cell().Element(CellStyle).Text($"${item.UnitPrice:N2}");
                             table.Cell().Element(CellStyle).Text($"${item.Subtotal:N2}");
                         }
                     });
                 });
-                page.Footer().AlignCenter().Text("Proyecto Muebles Modernos").FontSize(10);
+                page.Footer().AlignCenter().Text("Gracias por tu compra").FontSize(10).FontColor(Colors.Grey.Darken1);
             });
         }).GeneratePdf();
 
-        static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(4);
+        static string ValueOrDefault(string? value) => string.IsNullOrWhiteSpace(value) ? "No disponible" : value.Trim();
+        static IContainer HeaderCellStyle(IContainer container) => container.Background(Colors.Blue.Darken3).PaddingVertical(6).PaddingHorizontal(5);
+        static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(6).PaddingHorizontal(5);
+    }
+
+    private static void EnsureFontsRegistered()
+    {
+        if (fontsRegistered)
+        {
+            return;
+        }
+
+        var fontDirectory = Path.Combine(AppContext.BaseDirectory, "runtimes", "any", "native", "LatoFont");
+        foreach (var fileName in new[] { "Lato-Regular.ttf", "Lato-Bold.ttf" })
+        {
+            var fontPath = Path.Combine(fontDirectory, fileName);
+            if (File.Exists(fontPath))
+            {
+                using var fontStream = File.OpenRead(fontPath);
+                FontManager.RegisterFont(fontStream);
+            }
+        }
+
+        fontsRegistered = true;
     }
 }

@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "x9uZN0CgLSE=",
+  "dgSpecHash": "DEHrub/jYRU=",
   "success": true,
-  "projectFilePath": "/src/InventoryService.Api/InventoryService.Api.csproj",
+  "projectFilePath": "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\InventoryService.Api.csproj",
   "expectedPackageFiles": [
-    "/root/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
-    "/root/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.0/microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
-    "/root/.nuget/packages/npgsql/8.0.3/npgsql.8.0.3.nupkg.sha512"
+    "C:\\Users\\LENOVO\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\LENOVO\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\LENOVO\\.nuget\\packages\\npgsql\\8.0.3\\npgsql.8.0.3.nupkg.sha512"
   ],
   "logs": []
 }

@@ -316,7 +316,7 @@ sealed class OrderDb
         using var transaction = connection.BeginTransaction();
 
         var subtotal = request.Items.Sum(item => item.Quantity * item.UnitPrice);
-        var tax = Math.Round(subtotal * 0.16m, 2);
+        var tax = Math.Round(subtotal * 0.16m, 2, MidpointRounding.AwayFromZero);
         var total = subtotal + tax;
         var orderId = Guid.NewGuid();
         var now = DateTime.UtcNow;

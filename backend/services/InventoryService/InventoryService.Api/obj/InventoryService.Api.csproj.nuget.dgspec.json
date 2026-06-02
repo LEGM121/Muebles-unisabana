@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/src/InventoryService.Api/InventoryService.Api.csproj": {}
+    "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\InventoryService.Api.csproj": {}
   },
   "projects": {
-    "/src/InventoryService.Api/InventoryService.Api.csproj": {
+    "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\InventoryService.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/src/InventoryService.Api/InventoryService.Api.csproj",
+        "projectUniqueName": "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\InventoryService.Api.csproj",
         "projectName": "InventoryService.Api",
-        "projectPath": "/src/InventoryService.Api/InventoryService.Api.csproj",
-        "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/src/InventoryService.Api/obj/",
+        "projectPath": "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\InventoryService.Api.csproj",
+        "packagesPath": "C:\\Users\\LENOVO\\.nuget\\packages\\",
+        "outputPath": "C:\\Proyecto\\Proyecto-Muebles4-main\\backend\\services\\InventoryService\\InventoryService.Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\LENOVO\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -67,7 +67,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.421/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.421/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

@@ -16,6 +16,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<InventoryDb>();
     db.Initialize();
     db.Seed();
+    db.UpdateSeedProductImages();
 }
 
 app.MapGet("/health", () => Results.Ok(new { service = "InventoryService", database = "PostgreSQL" }));
@@ -67,6 +68,12 @@ record InventoryProductResponse(Guid ProductId, string Sku, string Name, string 
 
 sealed class InventoryDb
 {
+    private const string DefaultProductImage = "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80";
+    private const string SofaOsloImage = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=80";
+    private const string MesaLunaImage = "https://images.unsplash.com/photo-1604578762246-41134e37f9cc?auto=format&fit=crop&w=900&q=80";
+    private const string ModularNeoImage = "https://images.unsplash.com/photo-1493663284031-b7e3aaa4cab7?auto=format&fit=crop&w=900&q=80";
+    private const string DeskFocusImage = "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=80";
+
     private readonly string _connectionString;
 
     public InventoryDb(string connectionString)
@@ -98,6 +105,13 @@ sealed class InventoryDb
             );
         ";
         command.ExecuteNonQuery();
+
+        using var imageColumnCommand = connection.CreateCommand();
+        imageColumnCommand.CommandText = $@"
+            ALTER TABLE inventory_products
+            ADD COLUMN IF NOT EXISTS image TEXT NOT NULL DEFAULT '{DefaultProductImage}';
+        ";
+        imageColumnCommand.ExecuteNonQuery();
     }
 
     public void Seed()
@@ -113,10 +127,21 @@ sealed class InventoryDb
             return;
         }
 
-        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222221"), "SOFA-OSLO-001", "Sofá Nórdico Oslo", "salas", 2499m, "https://via.placeholder.com/400x280?text=Sofa+Nordico", new[] { "Arena", "Grafito", "Oliva" }, new[] { "2.10m", "2.40m" }, 12, 2, "Muebles Nórdicos");
-        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222222"), "MESA-LUNA-001", "Mesa Comedor Luna", "comedores", 1899m, "https://via.placeholder.com/400x280?text=Mesa+Luna", new[] { "Nogal", "Roble" }, new[] { "6 puestos", "8 puestos" }, 8, 1, "Diseños Luna" );
-        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222223"), "MOD-NEO-001", "Modular Neo", "salas", 3199m, "https://via.placeholder.com/400x280?text=Modular+Neo", new[] { "Perla", "Azul humo" }, new[] { "3 módulos", "4 módulos" }, 5, 1, "Modulares Urban" );
-        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222224"), "DESK-FOCUS-001", "Escritorio Focus", "oficina", 1299m, "https://via.placeholder.com/400x280?text=Escritorio+Focus", new[] { "Blanco", "Roble" }, new[] { "120 cm", "150 cm" }, 15, 0, "Oficinas Pro" );
+        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222221"), "SOFA-OSLO-001", "Sofá Nórdico Oslo", "salas", 2499m, SofaOsloImage, new[] { "Arena", "Grafito", "Oliva" }, new[] { "2.10m", "2.40m" }, 12, 2, "Muebles Nórdicos");
+        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222222"), "MESA-LUNA-001", "Mesa Comedor Luna", "comedores", 1899m, MesaLunaImage, new[] { "Nogal", "Roble" }, new[] { "6 puestos", "8 puestos" }, 8, 1, "Diseños Luna" );
+        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222223"), "MOD-NEO-001", "Modular Neo", "salas", 3199m, ModularNeoImage, new[] { "Perla", "Azul humo" }, new[] { "3 módulos", "4 módulos" }, 5, 1, "Modulares Urban" );
+        InsertSeedProduct(connection, Guid.Parse("22222222-2222-2222-2222-222222222224"), "DESK-FOCUS-001", "Escritorio Focus", "oficina", 1299m, DeskFocusImage, new[] { "Blanco", "Roble" }, new[] { "120 cm", "150 cm" }, 15, 0, "Oficinas Pro" );
+    }
+
+    public void UpdateSeedProductImages()
+    {
+        using var connection = new NpgsqlConnection(_connectionString);
+        connection.Open();
+
+        UpdateProductImage(connection, "SOFA-OSLO-001", SofaOsloImage);
+        UpdateProductImage(connection, "MESA-LUNA-001", MesaLunaImage);
+        UpdateProductImage(connection, "MOD-NEO-001", ModularNeoImage);
+        UpdateProductImage(connection, "DESK-FOCUS-001", DeskFocusImage);
     }
 
     public List<InventoryProductResponse> GetProducts()
@@ -279,6 +304,22 @@ sealed class InventoryDb
         command.Parameters.AddWithValue("supplierName", supplierName);
         command.Parameters.AddWithValue("createdAt", now);
         command.Parameters.AddWithValue("updatedAt", now);
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpdateProductImage(NpgsqlConnection connection, string sku, string image)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE inventory_products
+            SET image = @image,
+                updated_at = @updatedAt
+            WHERE sku = @sku
+              AND (image IS NULL OR image = '' OR image LIKE 'https://via.placeholder.com/%');
+        ";
+        command.Parameters.AddWithValue("sku", sku);
+        command.Parameters.AddWithValue("image", image);
+        command.Parameters.AddWithValue("updatedAt", DateTime.UtcNow);
         command.ExecuteNonQuery();
     }
 

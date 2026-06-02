@@ -2,6 +2,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:9090';
 
 // --- Interfaces ---
 export interface AuthLoginRequest { email: string; password: string; }
+export interface AuthForgotPasswordRequest { email: string; fullName?: string; }
+export interface AuthForgotPasswordResponse { message: string; }
 export interface AuthUser { id?: string; email: string; fullName: string; role?: string; }
 export interface AuthLoginResponse { token: string; expiresIn: number; user: AuthUser; }
 export interface CatalogProduct { id: string; name: string; category: string; price: number; image: string; colors: string[]; measures: string[]; }
@@ -24,7 +26,7 @@ export interface PaymentResponse { paymentId: string; orderId: string; customerI
 export interface PaymentAuthorizeResponse { paymentId: string; status: string; invoice: InvoiceResponse; invoicePdfBase64?: string; invoiceFileName?: string; }
 export interface UpdatePaymentRequest { status: string; paymentMethod: string; }
 export interface UserResponse { id: string; email: string; fullName: string; role: string; createdAt: string; isActive: boolean; }
-export interface CreateUserRequest { email: string; fullName: string; password: string; }
+export interface CreateUserRequest { email: string; fullName: string; password: string; role?: string; }
 export interface UpdateUserRequest { email: string; fullName: string; password?: string; role?: string; isActive?: boolean; }
 export interface SessionUser { id: string; email: string; fullName: string; role: string; token: string; }
 
@@ -71,6 +73,7 @@ export const sessionStorageService = {
 
 export const api = {
   login(payload: AuthLoginRequest) { return request<AuthLoginResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }); },
+  forgotPassword(payload: AuthForgotPasswordRequest) { return request<AuthForgotPasswordResponse>('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify(payload) }); },
   getCatalog() { return request<CatalogProduct[]>('/api/catalog'); },
   getInventoryProducts() { return request<InventoryProduct[]>('/api/inventory/products'); },
   createInventoryProduct(payload: CreateInventoryProductRequest) { return request<InventoryProduct>('/api/inventory/products', { method: 'POST', body: JSON.stringify(payload) }); },
@@ -78,6 +81,7 @@ export const api = {
   deleteInventoryProduct(productId: string) { return request<{ message: string }>(`/api/inventory/products/${productId}`, { method: 'DELETE' }); },
   getCart(customerId: string) { return request<CartResponse>(`/api/cart/${customerId}`); },
   addCartItem(payload: AddCartItemRequest) { return request<CartResponse>('/api/cart/items', { method: 'POST', body: JSON.stringify(payload) }); },
+  clearCart(customerId: string) { return request<CartResponse>(`/api/cart/${customerId}/items`, { method: 'DELETE' }); },
   removeCartItem(customerId: string, productId: string) { return request<{ message: string }>(`/api/cart/${customerId}/items/${productId}`, { method: 'DELETE' }); },
   getOrders() { return request<OrderResponse[]>('/api/orders'); },
   getOrder(orderId: string) { return request<OrderResponse>(`/api/orders/${orderId}`); },
