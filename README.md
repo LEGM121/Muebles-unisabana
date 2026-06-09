@@ -12,20 +12,7 @@ Monorepo base para una tienda de venta de muebles modernos, organizado por **5 m
 ## Estructura del repositorio
 
 ```text
-proyecto-muebles/
-├── backend/
-│   ├── 1-customer-experience/
-│   ├── 2-order-management/
-│   ├── 3-inventory-product/
-│   ├── 4-customer-loyalty/
-│   ├── 5-admin-analytics/
-│   ├── gateway/
-│   ├── shared/
-│   └── docker-compose.yml
-├── frontend/
-├── shared/
-└── docs/
-```
+
 
 ## Módulos backend
 
