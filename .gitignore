@@ -5,3 +5,5 @@ coverage/
 *.log
 .vscode/
 .idea/
+**/obj/
+**/bin/

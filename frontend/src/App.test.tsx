@@ -559,6 +559,19 @@ describe('App', () => {
     expect(await screen.findByText('Pago eliminado correctamente')).toBeInTheDocument();
   });
 
+  it('blocks checkout for guest users and asks them to log in or register', async () => {
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /agregar al carrito/i }));
+    await screen.findByText(/agregado al carrito/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pagar y generar factura' }));
+
+    expect(await screen.findAllByText('Debes iniciar sesion o registrarte para poder realizar el pago.')).not.toHaveLength(0);
+    expect(mockFetch.mock.calls.some(([input, init]) => String(input).includes('/api/orders') && init?.method === 'POST')).toBe(false);
+    expect(mockFetch.mock.calls.some(([input, init]) => String(input).includes('/api/payments/authorize') && init?.method === 'POST')).toBe(false);
+  });
+
   it('supports user crud and cart flow for admin', async () => {
     render(<App />);
 

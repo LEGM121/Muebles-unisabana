@@ -20,6 +20,7 @@ import {
   type UserResponse
 } from './services/api';
 import type { Product } from './types/product';
+import { validateInventoryForm } from './validation/formValidation';
 
 const FALLBACK_CUSTOMER_ID = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PRODUCT_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80';
@@ -37,6 +38,7 @@ type UserFormState = {
   id: string | null;
   email: string;
   fullName: string;
+  identification: string;
   password: string;
   role: string;
   isActive: boolean;
@@ -79,6 +81,7 @@ const EMPTY_USER_FORM: UserFormState = {
   id: null,
   email: '',
   fullName: '',
+  identification: '',
   password: '',
   role: 'Customer',
   isActive: true
@@ -137,7 +140,7 @@ function formatDate(value: string) {
 }
 
 function buildSessionUser(sessionUser: SessionUser | null) {
-  if (!sessionUser) {
+  if (!sessionUser || !sessionUser.token || sessionUser.role === 'Guest') {
     return {
       customerId: FALLBACK_CUSTOMER_ID,
       fullName: 'Cliente invitado',
@@ -348,6 +351,16 @@ useEffect(() => {
   // 1. Depuración: ¡Mira qué está pasando realmente con el producto!
   console.log("Producto recibido en addToCart:", product);
 
+  if (!sessionStorageService.load()) {
+    sessionStorageService.save({
+      id: customerId || FALLBACK_CUSTOMER_ID,
+      fullName: userName,
+      email: userEmail,
+      role: userRole,
+      token: authToken
+    });
+  }
+
   const session = sessionStorageService.load();
   if (!session || !session.id) {
     alert("Inicia sesión primero.");
@@ -374,7 +387,7 @@ useEffect(() => {
     };
 
     await api.addCartItem(payload);
-    alert("¡Producto agregado!");
+    setStatusMessage(`${product.name} agregado al carrito`);
     await loadCart(session.id);
   } catch (err) {
     console.error("Fallo al agregar:", err);
@@ -383,6 +396,13 @@ useEffect(() => {
 
   const handleCheckout = async () => {
     if (!cart || cart.items.length === 0) {
+      return;
+    }
+
+    if (!isAuthenticated || !authToken || userRole === 'Guest') {
+      setLatestInvoice(null);
+      resetFeedback();
+      setErrorMessage('Debes iniciar sesion o registrarte para poder realizar el pago.');
       return;
     }
 
@@ -447,17 +467,23 @@ useEffect(() => {
   const submitInventory = async () => {
     try {
       resetFeedback();
+      const validationErrors = validateInventoryForm(inventoryForm);
+      if (validationErrors.length > 0) {
+        setErrorMessage(validationErrors.join(' '));
+        return;
+      }
+
       const payload: CreateInventoryProductRequest | UpdateInventoryProductRequest = {
-        sku: inventoryForm.sku,
-        name: inventoryForm.name,
-        category: inventoryForm.category,
+        sku: inventoryForm.sku.trim(),
+        name: inventoryForm.name.trim(),
+        category: inventoryForm.category.trim(),
         price: Number(inventoryForm.price),
         image: inventoryForm.image || DEFAULT_PRODUCT_IMAGE,
         colors: parseCsv(inventoryForm.colors),
         measures: parseCsv(inventoryForm.measures),
         available: Number(inventoryForm.available),
         reserved: Number(inventoryForm.reserved),
-        supplierName: inventoryForm.supplierName
+        supplierName: inventoryForm.supplierName.trim()
       };
 
       if (inventoryForm.productId) {
@@ -620,6 +646,7 @@ useEffect(() => {
         await api.updateUser(userForm.id, {
           email: userForm.email,
           fullName: userForm.fullName,
+          identification: userForm.identification,
           password: userForm.password || undefined,
           role: userForm.role,
           isActive: userForm.isActive
@@ -629,6 +656,7 @@ useEffect(() => {
         await api.createUser({
           email: userForm.email,
           fullName: userForm.fullName,
+          identification: userForm.identification,
           password: userForm.password,
           role: userForm.role
         });
@@ -646,6 +674,7 @@ useEffect(() => {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      identification: user.identification ?? '',
       password: '',
       role: user.role,
       isActive: user.isActive
@@ -836,7 +865,7 @@ const handleLoginSuccess = (payload: {
               <select aria-label="Seleccionar orden" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" value={selectedOrderId ?? ''} onChange={(event) => setSelectedOrderId(event.target.value || null)}>
                 <option value="">Selecciona una orden</option>
                 {orders.map((order) => (
-                  <option key={order.orderId} value={order.orderId}>{order.orderId}</option>
+                  <option key={order.orderId} value={order.orderId}>Orden disponible</option>
                 ))}
               </select>
               <select aria-label="Estado orden" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" value={selectedOrderStatus} onChange={(event) => setSelectedOrderStatus(event.target.value)}>
@@ -903,7 +932,7 @@ const handleLoginSuccess = (payload: {
               <select aria-label="Seleccionar pago" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" value={selectedPaymentId ?? ''} onChange={(event) => setSelectedPaymentId(event.target.value || null)}>
                 <option value="">Selecciona un pago</option>
                 {payments.map((payment) => (
-                  <option key={payment.paymentId} value={payment.paymentId}>{payment.paymentId}</option>
+                  <option key={payment.paymentId} value={payment.paymentId}>Pago disponible</option>
                 ))}
               </select>
               <select aria-label="Estado pago" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" value={selectedPaymentStatus} onChange={(event) => setSelectedPaymentStatus(event.target.value)}>
@@ -994,9 +1023,10 @@ const handleLoginSuccess = (payload: {
       case 'users':
         return (
           <div className="space-y-6">
-            <div className="grid gap-4 rounded-2xl bg-stone-50 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 rounded-2xl bg-stone-50 p-4 md:grid-cols-2 xl:grid-cols-5">
               <input aria-label="Correo usuario" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Correo" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
               <input aria-label="Nombre usuario" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Nombre completo" value={userForm.fullName} onChange={(event) => setUserForm((current) => ({ ...current, fullName: event.target.value }))} />
+              <input aria-label="Identificacion usuario" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Identificacion" value={userForm.identification} onChange={(event) => setUserForm((current) => ({ ...current, identification: event.target.value }))} />
               <input aria-label="Password usuario" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" placeholder="Password" type="password" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} />
               <select aria-label="Rol usuario" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
                 {['Admin', 'Customer'].map((role) => (
@@ -1023,6 +1053,7 @@ const handleLoginSuccess = (payload: {
                     <thead className="bg-stone-100 text-left text-stone-600">
                       <tr>
                         <th className="px-4 py-3 font-semibold">Nombre</th>
+                        <th className="px-4 py-3 font-semibold">Identificacion</th>
                         <th className="px-4 py-3 font-semibold">Correo</th>
                         <th className="px-4 py-3 font-semibold">Rol</th>
                         <th className="px-4 py-3 font-semibold">Estado</th>
@@ -1033,6 +1064,7 @@ const handleLoginSuccess = (payload: {
                       {users.map((user) => (
                         <tr key={user.id}>
                           <td className="px-4 py-3">{user.fullName}</td>
+                          <td className="px-4 py-3">{user.identification || '-'}</td>
                           <td className="px-4 py-3">{user.email}</td>
                           <td className="px-4 py-3">{user.role}</td>
                           <td className="px-4 py-3">{user.isActive ? 'Activo' : 'Inactivo'}</td>
@@ -1082,7 +1114,7 @@ const handleLoginSuccess = (payload: {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-7xl gap-8 px-6 py-8">
+      <main className="mx-auto flex max-w-[1360px] gap-8 px-6 py-8">
         {isAdmin && (
           <aside className="w-64 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
             <h2 className="mb-4 text-lg font-semibold">Menú</h2>
@@ -1099,14 +1131,19 @@ const handleLoginSuccess = (payload: {
         )}
 
         <div className="flex-1 space-y-8">
-          <section className={`grid gap-8 ${isAuthenticated ? 'lg:grid-cols-[1fr_320px]' : 'lg:grid-cols-[240px_1fr_320px]'}`}>
+          {isAdmin && activeSection !== 'dashboard' && statusMessage && (
+            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{statusMessage}</p>
+          )}
+          {isAdmin && activeSection !== 'dashboard' && errorMessage && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
+          )}
+          {(!isAdmin || activeSection === 'dashboard') && (
+          <section className={`grid gap-8 ${isAuthenticated ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : 'lg:grid-cols-[320px_minmax(0,1fr)_340px]'}`}>
               {!isAuthenticated && (
               <aside className="space-y-6">
   {/* 1. Login: Solo se ve si NO hay sesión */}
   {!isAuthenticated && (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
       <LoginForm onLoginSuccess={handleLoginSuccess} />
-    </div>
   )}
 
   {/* 2. Panel de Admin: Se ve solo si el usuario es Admin Y está autenticado */}
@@ -1134,7 +1171,7 @@ const handleLoginSuccess = (payload: {
               {catalogLoading ? (
                 <p className="text-sm text-stone-500">Cargando catálogo...</p>
               ) : (
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid items-stretch gap-6 sm:grid-cols-2 xl:grid-cols-3">
                    {filteredProducts.map((product) => (
                     <ProductCard 
                     
@@ -1153,6 +1190,7 @@ const handleLoginSuccess = (payload: {
                 loading={cartLoading}
                 onCheckout={() => void handleCheckout()}
                 checkoutDisabled={checkoutLoading || !cart || cart.items.length === 0}
+                checkoutNotice={!isAuthenticated && cart && cart.items.length > 0 ? 'Debes iniciar sesion o registrarte para poder realizar el pago.' : undefined}
                 invoice={latestInvoice}
                 onDownloadInvoice={downloadLatestInvoice}
               />
@@ -1166,6 +1204,7 @@ const handleLoginSuccess = (payload: {
               )}
             </aside>
           </section>
+          )}
 
           {isAdmin && (
             <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
@@ -1176,6 +1215,7 @@ const handleLoginSuccess = (payload: {
 
           {!isAdmin && isAuthenticated && (
             <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
+              <h2 className="mb-4 text-xl font-semibold">Opciones de cliente</h2>
               <h2 className="mb-4 text-xl font-semibold">Mis facturas</h2>
               <p className="mb-4 text-sm text-stone-600">Aquí puedes revisar los pagos con factura disponibles para descarga en PDF.</p>
               <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">

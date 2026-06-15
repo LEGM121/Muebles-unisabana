@@ -45,22 +45,22 @@ export function ProductCard({ product, onAddToCart }: Props) {
   const productImage = getProductImage(product);
 
   return (
-    <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
+    <article className="flex h-full min-h-[520px] flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
       <img
-        className="h-56 w-full object-cover"
+        className="h-60 w-full shrink-0 object-cover"
         src={productImage}
         alt={product.name}
         onError={(event) => {
           event.currentTarget.src = PRODUCT_IMAGES.default;
         }}
       />
-      <div className="space-y-4 p-5">
+      <div className="flex flex-1 flex-col space-y-4 p-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.3em] text-brand-500">{product.category}</p>
             <h3 className="text-lg font-semibold">{product.name}</h3>
           </div>
-          <span className="text-lg font-bold">${product.price}</span>
+          <span className="shrink-0 text-lg font-bold">${product.price}</span>
         </div>
 
         <div className="text-sm text-stone-600">
@@ -69,7 +69,7 @@ export function ProductCard({ product, onAddToCart }: Props) {
         </div>
 
         <button
-          className="w-full rounded-xl bg-brand-700 px-4 py-3 font-medium text-white transition hover:bg-brand-900"
+          className="mt-auto w-full rounded-xl bg-brand-700 px-4 py-3 font-medium text-white transition hover:bg-brand-900"
           onClick={() => onAddToCart(product)}
         >
           Agregar al carrito

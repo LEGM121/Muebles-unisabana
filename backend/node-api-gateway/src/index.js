@@ -83,6 +83,18 @@ async function proxyBinary(req, res, baseUrl, path, init = {}) {
 }
 
 // --- RUTAS AUTENTICACIÓN ---
+function requireAuthenticatedCustomer(req, res) {
+  const userId = req.headers['x-user-id'];
+  const userRole = req.headers['x-user-role'];
+
+  if (!userId || !userRole || String(userRole).toLowerCase() === 'guest') {
+    res.status(401).json({ message: 'Debes iniciar sesion o registrarte para poder realizar el pago.' });
+    return false;
+  }
+
+  return true;
+}
+
 app.post('/api/auth/login', (req, res) => proxyJson(req, res, services.auth, '/api/auth/login', { method: 'POST', body: JSON.stringify(req.body) }));
 app.post('/api/auth/register', (req, res) => proxyJson(req, res, services.auth, '/api/auth/register', { method: 'POST', body: JSON.stringify(req.body) }));
 app.post('/api/auth/forgot-password', (req, res) => proxyJson(req, res, services.auth, '/api/auth/forgot-password', { method: 'POST', body: JSON.stringify(req.body) }));
@@ -110,7 +122,10 @@ app.delete('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.or
 app.get('/api/payments', (req, res) => proxyJson(req, res, services.payments, '/api/payments'));
 app.get('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`));
 app.get('/api/payments/:paymentId/invoice/pdf', (req, res) => proxyBinary(req, res, services.payments, `/api/payments/${req.params.paymentId}/invoice/pdf`));
-app.post('/api/payments/authorize', (req, res) => proxyJson(req, res, services.payments, '/api/payments/authorize', { method: 'POST', body: JSON.stringify(req.body) }));
+app.post('/api/payments/authorize', (req, res) => {
+  if (!requireAuthenticatedCustomer(req, res)) return;
+  return proxyJson(req, res, services.payments, '/api/payments/authorize', { method: 'POST', body: JSON.stringify(req.body) });
+});
 app.put('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`, { method: 'PUT', body: JSON.stringify(req.body) }));
 app.delete('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`, { method: 'DELETE' }));
 

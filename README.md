@@ -1,155 +1,365 @@
 # Proyecto Muebles Modernos
 
-Monorepo base para una tienda de venta de muebles modernos, organizado por **5 módulos de backend** y un **frontend React**.
+Sistema web para una tienda de muebles modernos. El proyecto permite consultar catalogo, iniciar sesion, registrar usuarios, administrar inventario, agregar productos al carrito, crear ordenes, autorizar pagos y generar factura.
 
-## Stack principal
+El repositorio esta organizado como un monorepo con frontend React, gateway Node.js y backend .NET 8 por servicios.
 
-- **Frontend**: React + Vite + Tailwind CSS + Vitest
-- **Gateway / BFF**: Node.js
-- **Backend**: .NET 8 con arquitectura limpia por microservicios
-- **Arquitectura**: separación por módulos funcionales y dominios críticos
+## Caracteristicas principales
 
-## Estructura del repositorio
+- Interfaz web para clientes y administradores.
+- Login, registro y recuperacion de contrasena.
+- Catalogo de productos de muebles.
+- Carrito de compras por cliente.
+- Checkout con creacion de orden.
+- Autorizacion de pago y generacion de factura.
+- Administracion de productos de inventario.
+- Administracion basica de usuarios.
+- API Gateway para centralizar la comunicacion del frontend.
+- Microservicios .NET separados por responsabilidad.
+- Pruebas unitarias, integrales y E2E simulado.
+- Reportes de pruebas y captura de evidencia E2E real.
+
+## Tecnologias usadas
+
+| Capa | Tecnologia | Uso |
+| --- | --- | --- |
+| Frontend | React 18 | Construccion de interfaz por componentes |
+| Frontend | Vite | Servidor de desarrollo y build |
+| Frontend | TypeScript | Tipado de componentes, servicios y modelos |
+| Frontend | Tailwind CSS | Estilos de la aplicacion |
+| Pruebas frontend | Vitest + Testing Library | Pruebas de UI, formularios y flujo E2E simulado |
+| Gateway | Node.js + Express | Proxy/BFF entre frontend y microservicios |
+| Backend | .NET 8 | APIs de negocio |
+| Backend | Minimal APIs | Endpoints HTTP ligeros |
+| Pruebas backend | xUnit + coverlet | Pruebas unitarias, integrales y cobertura |
+| Base de datos | PostgreSQL | Persistencia principal en entorno Docker |
+| Auth local | SQLite / archivo local segun ejecucion | Persistencia local del servicio de autenticacion |
+| Infraestructura | Docker Compose | Levantar base de datos, servicios y gateway |
+
+## Estructura del proyecto
 
 ```text
-proyecto-muebles/
-├── backend/
-│   ├── 1-customer-experience/
-│   ├── 2-order-management/
-│   ├── 3-inventory-product/
-│   ├── 4-customer-loyalty/
-│   ├── 5-admin-analytics/
-│   ├── gateway/
-│   ├── shared/
-│   └── docker-compose.yml
-├── frontend/
-├── shared/
-└── docs/
+Proyecto-Muebles4-main/
++-- backend/
+|   +-- 1-customer-experience/
+|   +-- 2-order-management/
+|   +-- 3-inventory-product/
+|   +-- 4-customer-loyalty/
+|   +-- 5-admin-analytics/
+|   +-- node-api-gateway/
+|   +-- services/
+|       +-- AuthService/
+|       +-- CatalogService/
+|       +-- CartService/
+|       +-- InventoryService/
+|       +-- OrderService/
+|       +-- PaymentService/
++-- frontend/
+|   +-- src/
+|       +-- components/
+|       +-- services/
+|       +-- validation/
+|       +-- mocks/
+|       +-- App.tsx
++-- shared/
++-- docs/
++-- reports/
++-- scripts/
++-- docker-compose.yml
 ```
 
-## Módulos backend
+## Organizacion por modulos de negocio
 
-### 1. Customer Experience
-- catálogo
-- configurador
-- carrito / checkout
-- CMS
+| Modulo | Responsabilidad | Servicios/funciones |
+| --- | --- | --- |
+| `1-customer-experience` | Experiencia directa del cliente | Catalogo, configurador, carrito, checkout, CMS |
+| `2-order-management` | Ciclo de compra | Ordenes, pagos, envios, notificaciones |
+| `3-inventory-product` | Productos y stock | Inventario, productos, precios, proveedores |
+| `4-customer-loyalty` | Identidad y relacion con cliente | Autenticacion, usuarios, resenas, wishlist, soporte |
+| `5-admin-analytics` | Operacion interna | Administracion, analitica, marketing, integraciones |
 
-### 2. Order Management
-- pedidos
-- pagos
-- envíos
-- notificaciones
+## Servicios disponibles
 
-### 3. Inventory Product
-- inventario
-- productos
-- precios
-- proveedores
+| Servicio | Puerto | Funcion principal |
+| --- | --- | --- |
+| PostgreSQL | `5432` | Base de datos principal |
+| `AuthService` | `8081` | Registro, login, recuperacion de contrasena y usuarios |
+| `CatalogService` | `8082` | Consulta de catalogo y validacion de productos |
+| `CartService` | `8083` | Consulta, agregado, eliminacion y limpieza del carrito |
+| `OrderService` | `8084` | Creacion, consulta, actualizacion y eliminacion de ordenes |
+| `PaymentService` | `8085` | Autorizacion de pagos, consulta de pagos y factura PDF |
+| `InventoryService` | `8086` | CRUD de productos de inventario |
+| API Gateway | `9090` | Entrada unica del frontend hacia los servicios |
+| Frontend Vite | `5173` | Aplicacion web React |
 
-### 4. Customer Loyalty
-- autenticación
-- usuarios
-- reseñas
-- wishlist
-- soporte / postventa
+## Funciones por servicio
 
-### 5. Admin Analytics
-- administración
-- analytics
-- marketing
-- integraciones
+### AuthService
 
-## Estado actual
+- Registrar usuario.
+- Iniciar sesion.
+- Recuperar contrasena.
+- Listar usuarios.
+- Actualizar usuario.
+- Eliminar usuario.
 
-Este repositorio contiene una **base inicial**. La estructura ya refleja la organización objetivo por módulos y deja preparada la evolución hacia microservicios completos con carpetas de `Api`, `Application`, `Domain`, `Infrastructure` y `Tests`.
+Rutas expuestas por el gateway:
 
-## Integración actual frontend + backend
+```text
+POST   /api/auth/login
+POST   /api/auth/register
+POST   /api/auth/forgot-password
+GET    /api/auth/users
+PUT    /api/auth/users/:id
+DELETE /api/auth/users/:id
+```
 
-La integración funcional disponible conecta el frontend con los servicios implementados actualmente:
+### CatalogService
 
-- `AuthService` para login.
-- `CatalogService` para obtener el catálogo.
-- `CartService` para consultar y agregar productos al carrito.
-- `OrderService` para generar órdenes.
-- `PaymentService` e `InventoryService` quedan expuestos a través del gateway para futuras pantallas del frontend.
+- Consultar productos visibles en el catalogo.
+- Validar reglas de producto.
+- Aplicar reglas de dominio como nombre obligatorio y precio mayor que cero.
 
-El frontend ya no depende del mock de catálogo para el flujo principal y consume el gateway Node en `http://localhost:9090`.
+Rutas expuestas:
 
-## Levantar en entorno local con Docker
+```text
+GET /api/catalog
+```
 
-### Requisitos
+### CartService
 
-- Docker
-- Docker Compose
+- Consultar carrito de un cliente.
+- Agregar producto al carrito.
+- Eliminar un producto del carrito.
+- Limpiar todos los productos del carrito.
 
-### Paso 1. Levantar backend, gateway y frontend
+Rutas expuestas:
 
-Desde la carpeta `backend/` ejecuta:
+```text
+GET    /api/cart/:customerId
+POST   /api/cart/items
+DELETE /api/cart/:customerId/items
+DELETE /api/cart/:customerId/items/:productId
+```
 
-```bash
+### OrderService
+
+- Crear orden de compra.
+- Consultar ordenes.
+- Consultar orden por id.
+- Actualizar estado de orden.
+- Eliminar orden.
+
+Rutas expuestas:
+
+```text
+GET    /api/orders
+GET    /api/orders/:orderId
+POST   /api/orders
+PUT    /api/orders/:orderId
+DELETE /api/orders/:orderId
+```
+
+### PaymentService
+
+- Autorizar pago.
+- Consultar pagos.
+- Consultar pago por id.
+- Actualizar pago.
+- Eliminar pago.
+- Descargar factura en PDF.
+
+Rutas expuestas:
+
+```text
+GET    /api/payments
+GET    /api/payments/:paymentId
+GET    /api/payments/:paymentId/invoice/pdf
+POST   /api/payments/authorize
+PUT    /api/payments/:paymentId
+DELETE /api/payments/:paymentId
+```
+
+### InventoryService
+
+- Listar productos de inventario.
+- Consultar producto por id.
+- Crear producto.
+- Actualizar producto.
+- Eliminar producto.
+
+Rutas expuestas:
+
+```text
+GET    /api/inventory/products
+GET    /api/inventory/products/:productId
+POST   /api/inventory/products
+PUT    /api/inventory/products/:productId
+DELETE /api/inventory/products/:productId
+```
+
+## Arquitectura del flujo
+
+```text
+Usuario
+  |
+  v
+Frontend React (http://localhost:5173)
+  |
+  v
+API Gateway Node (http://localhost:9090)
+  |
+  v
+Microservicios .NET
+  |
+  v
+PostgreSQL / repositorios internos
+  |
+  v
+Respuesta al frontend
+```
+
+El frontend no llama directamente a cada microservicio. Consume el gateway en `http://localhost:9090`, y el gateway redirige cada peticion al servicio correspondiente.
+
+## Arquitectura limpia en CatalogService
+
+`CatalogService` es el servicio con estructura mas completa para mostrar arquitectura limpia:
+
+```text
+backend/services/CatalogService/
++-- CatalogService.Api/
++-- CatalogService.Application/
++-- CatalogService.Domain/
++-- CatalogService.Infrastructure/
++-- CatalogService.Tests/
+```
+
+| Capa | Responsabilidad |
+| --- | --- |
+| `Api` | Expone endpoints HTTP |
+| `Application` | Casos de uso y logica de aplicacion |
+| `Domain` | Entidades y reglas puras de negocio |
+| `Infrastructure` | Repositorios e implementaciones tecnicas |
+| `Tests` | Pruebas automatizadas |
+
+## Flujo funcional principal
+
+1. El usuario abre la aplicacion web.
+2. El frontend consulta el catalogo.
+3. El usuario inicia sesion o se registra.
+4. El usuario agrega un producto al carrito.
+5. El checkout crea una orden.
+6. El sistema autoriza el pago.
+7. Se genera una factura.
+8. La interfaz muestra confirmacion de compra.
+
+## Requisitos
+
+- Node.js 20 o superior.
+- npm.
+- .NET SDK 8.
+- Docker y Docker Compose.
+
+## Ejecucion local
+
+### 1. Levantar backend, gateway y base de datos
+
+Desde la raiz del proyecto:
+
+```powershell
 docker compose up --build
 ```
 
-Esto levantará:
+Esto levanta PostgreSQL, los servicios .NET y el API Gateway.
 
-- PostgreSQL en `localhost:5432`
-- AuthService en `localhost:8081`
-- CatalogService en `localhost:8082`
-- CartService en `localhost:8083`
-- OrderService en `localhost:8084`
-- PaymentService en `localhost:8085`
-- InventoryService en `localhost:8086`
-- API Gateway en `localhost:9090`
-- Frontend en `localhost:5173`
+### 2. Levantar frontend
 
-### Paso 2. Abrir la aplicación
+En otra terminal:
 
-Abre en tu navegador:
+```powershell
+cd frontend
+npm.cmd install
+npm.cmd run dev
+```
+
+Abrir:
 
 ```text
 http://localhost:5173
 ```
 
-### Paso 3. Flujo recomendado de prueba
+## Usuario de prueba
 
-1. Inicia sesión con un usuario existente del `AuthService`.
-2. Consulta el catálogo.
-3. Agrega productos al carrito.
-4. Ejecuta checkout para crear una orden.
-
-### Nota importante sobre autenticación
-
-El `AuthService` usa SQLite local dentro del contenedor. Si no existe un usuario previamente creado, primero debes registrar uno consumiendo el endpoint de registro:
+Si no existe un usuario, se puede crear desde el frontend o consumiendo el endpoint de registro:
 
 ```bash
-curl -X POST http://localhost:8081/api/auth/register \
+curl -X POST http://localhost:9090/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "cliente@muebles.com",
     "fullName": "Cliente Demo",
+    "identification": "1234567890",
     "password": "Password123!"
   }'
 ```
 
-Después podrás iniciar sesión desde el frontend con:
+Luego iniciar sesion con:
 
-- usuario: `cliente@muebles.com`
-- password: `Password123!`
-
-### Apagar servicios
-
-```bash
-docker compose down
+```text
+email: cliente@muebles.com
+password: Password123!
 ```
 
-Si además quieres borrar los volúmenes:
+## Pruebas
 
-```bash
-docker compose down -v
+### Backend
+
+```powershell
+dotnet test backend\services\CatalogService\CatalogService.Tests\CatalogService.Tests.csproj
 ```
 
-## Documentación
+### Frontend
+
+```powershell
+cd frontend
+npm.cmd test -- --run
+```
+
+### Reporte unificado
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run-test-report.ps1
+```
+
+## Captura E2E real
+
+La aplicacion permite activar captura de llamadas reales para evidenciar el flujo completo.
+
+Abrir:
+
+```text
+http://localhost:5173?e2eCapture=1
+```
+
+Luego realizar el flujo:
+
+1. Login.
+2. Consulta de catalogo.
+3. Agregar producto al carrito.
+4. Crear orden.
+5. Autorizar pago.
+6. Descargar reporte desde el panel de captura.
+
+## Documentacion adicional
 
 - `docs/architecture.md`
 - `docs/modules.md`
+- `docs/estrategia_pruebas_unitarias_integrales_e2e.md`
+- `docs/guia_tecnologia_estructura_funcionamiento.md`
+- `docs/guia_casos_prueba_presentacion.md`
+- `docs/guia_validacion_pruebas_y_pipeline.md`
+- `docs/pruebas_catalogo.md`
+
+## Estado del proyecto
+
+El proyecto ya cuenta con una base funcional integrada entre frontend, gateway y servicios principales. Tambien incluye pruebas automatizadas para reglas de dominio, integracion de CatalogService, validaciones frontend y flujo E2E simulado. El siguiente paso natural es automatizar E2E real con navegador usando Playwright o Cypress.

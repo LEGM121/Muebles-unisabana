@@ -5,6 +5,7 @@ interface Props {
   loading?: boolean;
   onCheckout?: () => void;
   checkoutDisabled?: boolean;
+  checkoutNotice?: string;
   invoice?: InvoiceResponse | null;
   onDownloadInvoice?: () => void;
 }
@@ -14,6 +15,7 @@ export function CartPanel({
   loading = false,
   onCheckout,
   checkoutDisabled = false,
+  checkoutNotice,
   invoice,
   onDownloadInvoice
 }: Props) {
@@ -51,6 +53,11 @@ export function CartPanel({
           <span>Total</span>
           <span>${total.toFixed(2)}</span>
         </div>
+        {checkoutNotice && (
+          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+            {checkoutNotice}
+          </p>
+        )}
         <button
           className="w-full rounded-xl bg-stone-900 px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-400"
           onClick={onCheckout}

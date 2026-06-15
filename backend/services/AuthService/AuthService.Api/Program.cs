@@ -24,9 +24,9 @@ app.MapGet("/health", () => Results.Ok(new { service = "AuthService" }));
 
 app.MapPost("/api/auth/register", (HttpContext httpContext, RegisterRequest request, AuthDb db) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName))
+    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.Identification))
     {
-        return Results.BadRequest(new { message = "Email, password y fullName son obligatorios" });
+        return Results.BadRequest(new { message = "Email, password, fullName e identification son obligatorios" });
     }
 
     var normalizedEmail = request.Email.Trim().ToLowerInvariant();
@@ -44,6 +44,7 @@ app.MapPost("/api/auth/register", (HttpContext httpContext, RegisterRequest requ
         Guid.NewGuid(),
         normalizedEmail,
         request.FullName.Trim(),
+        request.Identification.Trim(),
         BCrypt.Net.BCrypt.HashPassword(request.Password),
         role,
         DateTime.UtcNow,
@@ -101,6 +102,7 @@ app.MapPost("/api/auth/login", (LoginRequest request, AuthDb db) =>
             user.Id,
             user.Email,
             user.FullName,
+            user.Identification,
             user.Role
         }
     });
@@ -130,9 +132,9 @@ app.MapPut("/api/auth/users/{id:guid}", (HttpContext httpContext, Guid id, Updat
         return adminGuard;
     }
 
-    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.FullName))
+    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.Identification))
     {
-        return Results.BadRequest(new { message = "Email y fullName son obligatorios" });
+        return Results.BadRequest(new { message = "Email, fullName e identification son obligatorios" });
     }
 
     var existingUser = db.GetUserById(id);
@@ -152,6 +154,7 @@ app.MapPut("/api/auth/users/{id:guid}", (HttpContext httpContext, Guid id, Updat
     {
         Email = normalizedEmail,
         FullName = request.FullName.Trim(),
+        Identification = request.Identification.Trim(),
         PasswordHash = string.IsNullOrWhiteSpace(request.Password)
             ? existingUser.PasswordHash
             : BCrypt.Net.BCrypt.HashPassword(request.Password),
@@ -191,6 +194,7 @@ static object ToUserResponse(UserRecord user) => new
     user.Id,
     user.Email,
     user.FullName,
+    user.Identification,
     user.Role,
     user.CreatedAt,
     user.IsActive
@@ -219,12 +223,12 @@ static IResult? RequireAdmin(HttpContext httpContext)
         : Results.StatusCode(StatusCodes.Status403Forbidden);
 }
 
-record RegisterRequest(string Email, string FullName, string Password, string? Role);
+record RegisterRequest(string Email, string FullName, string Identification, string Password, string? Role);
 record LoginRequest(string Email, string Password);
 record ForgotPasswordRequest(string Email, string? FullName);
-record UpdateUserRequest(string Email, string FullName, string? Password, string? Role, bool? IsActive);
+record UpdateUserRequest(string Email, string FullName, string Identification, string? Password, string? Role, bool? IsActive);
 
-record UserRecord(Guid Id, string Email, string FullName, string PasswordHash, string Role, DateTime CreatedAt, bool IsActive);
+record UserRecord(Guid Id, string Email, string FullName, string Identification, string PasswordHash, string Role, DateTime CreatedAt, bool IsActive);
 
 sealed class PasswordRecoveryNotifier
 {
@@ -244,6 +248,7 @@ sealed class PasswordRecoveryNotifier
 
             Nombre indicado: {ValueOrDefault(requestedName, user.FullName)}
             Nombre registrado: {user.FullName}
+            Identificacion: {ValueOrDefault(user.Identification, "No registrada")}
             Correo: {user.Email}
 
             La contrasena anterior no puede enviarse porque esta almacenada cifrada.
@@ -323,6 +328,7 @@ sealed class AuthDb
                 Id TEXT PRIMARY KEY,
                 Email TEXT NOT NULL UNIQUE,
                 FullName TEXT NOT NULL,
+                Identification TEXT NOT NULL DEFAULT '',
                 PasswordHash TEXT NOT NULL,
                 Role TEXT NOT NULL,
                 CreatedAt TEXT NOT NULL,
@@ -331,6 +337,7 @@ sealed class AuthDb
         ";
         command.ExecuteNonQuery();
 
+        EnsureIdentificationColumn(connection);
         SeedDefaultAdmin(connection);
     }
 
@@ -341,12 +348,13 @@ sealed class AuthDb
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Users (Id, Email, FullName, PasswordHash, Role, CreatedAt, IsActive)
-            VALUES ($id, $email, $fullName, $passwordHash, $role, $createdAt, $isActive);
+            INSERT INTO Users (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
+            VALUES ($id, $email, $fullName, $identification, $passwordHash, $role, $createdAt, $isActive);
         ";
         command.Parameters.AddWithValue("$id", user.Id.ToString());
         command.Parameters.AddWithValue("$email", user.Email);
         command.Parameters.AddWithValue("$fullName", user.FullName);
+        command.Parameters.AddWithValue("$identification", user.Identification);
         command.Parameters.AddWithValue("$passwordHash", user.PasswordHash);
         command.Parameters.AddWithValue("$role", user.Role);
         command.Parameters.AddWithValue("$createdAt", user.CreatedAt.ToString("O"));
@@ -361,7 +369,7 @@ sealed class AuthDb
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, Email, FullName, PasswordHash, Role, CreatedAt, IsActive
+            SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
             WHERE Id = $id
             LIMIT 1;
@@ -384,7 +392,7 @@ sealed class AuthDb
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, Email, FullName, PasswordHash, Role, CreatedAt, IsActive
+            SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
             WHERE Email = $email
             LIMIT 1;
@@ -408,7 +416,7 @@ sealed class AuthDb
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, Email, FullName, PasswordHash, Role, CreatedAt, IsActive
+            SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
             ORDER BY CreatedAt DESC;
         ";
@@ -432,6 +440,7 @@ sealed class AuthDb
             UPDATE Users
             SET Email = $email,
                 FullName = $fullName,
+                Identification = $identification,
                 PasswordHash = $passwordHash,
                 Role = $role,
                 IsActive = $isActive
@@ -440,6 +449,7 @@ sealed class AuthDb
         command.Parameters.AddWithValue("$id", user.Id.ToString());
         command.Parameters.AddWithValue("$email", user.Email);
         command.Parameters.AddWithValue("$fullName", user.FullName);
+        command.Parameters.AddWithValue("$identification", user.Identification);
         command.Parameters.AddWithValue("$passwordHash", user.PasswordHash);
         command.Parameters.AddWithValue("$role", user.Role);
         command.Parameters.AddWithValue("$isActive", user.IsActive ? 1 : 0);
@@ -465,8 +475,37 @@ sealed class AuthDb
             record.GetString(2),
             record.GetString(3),
             record.GetString(4),
-            DateTime.Parse(record.GetString(5)),
-            record.GetInt32(6) == 1);
+            record.GetString(5),
+            DateTime.Parse(record.GetString(6)),
+            record.GetInt32(7) == 1);
+    }
+
+    private static void EnsureIdentificationColumn(SqliteConnection connection)
+    {
+        using var infoCommand = connection.CreateCommand();
+        infoCommand.CommandText = "PRAGMA table_info(Users);";
+
+        var hasIdentification = false;
+        using (var reader = infoCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), "Identification", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasIdentification = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasIdentification)
+        {
+            return;
+        }
+
+        using var alterCommand = connection.CreateCommand();
+        alterCommand.CommandText = "ALTER TABLE Users ADD COLUMN Identification TEXT NOT NULL DEFAULT '';";
+        alterCommand.ExecuteNonQuery();
     }
 
     private static void SeedDefaultAdmin(SqliteConnection connection)
@@ -482,12 +521,13 @@ sealed class AuthDb
 
         using var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
-            INSERT INTO Users (Id, Email, FullName, PasswordHash, Role, CreatedAt, IsActive)
-            VALUES ($id, $email, $fullName, $passwordHash, $role, $createdAt, $isActive);
+            INSERT INTO Users (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
+            VALUES ($id, $email, $fullName, $identification, $passwordHash, $role, $createdAt, $isActive);
         ";
         insertCommand.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
         insertCommand.Parameters.AddWithValue("$email", "admin@muebles.com");
         insertCommand.Parameters.AddWithValue("$fullName", "Administrador");
+        insertCommand.Parameters.AddWithValue("$identification", "admin");
         insertCommand.Parameters.AddWithValue("$passwordHash", BCrypt.Net.BCrypt.HashPassword("Admin123*"));
         insertCommand.Parameters.AddWithValue("$role", "Admin");
         insertCommand.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
