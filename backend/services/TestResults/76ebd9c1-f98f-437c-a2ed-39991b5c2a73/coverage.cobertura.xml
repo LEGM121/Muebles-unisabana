@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<coverage line-rate="0.92" branch-rate="1" version="1.9" timestamp="1781527051" lines-covered="46" lines-valid="50" branches-covered="8" branches-valid="8">
+<coverage line-rate="0.92" branch-rate="1" version="1.9" timestamp="1781660424" lines-covered="46" lines-valid="50" branches-covered="8" branches-valid="8">
   <sources>
-    <source>C:\Proyecto\Proyecto-Muebles4-main\backend\services\CatalogService\</source>
+    <source>C:\Users\jomunoz_premier\Documents\Personal\USabana\testing y validacion de software\Proyecto\Muebles-unisabana\backend\services\CatalogService\</source>
   </sources>
   <packages>
     <package name="CatalogService.Application" line-rate="0.7777" branch-rate="1" complexity="10">
@@ -15,7 +15,7 @@
             </method>
             <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
               <lines>
-                <line number="5" hits="4" branch="False" />
+                <line number="5" hits="6" branch="False" />
               </lines>
             </method>
             <method name="get_Category" signature="()" line-rate="0" branch-rate="1" complexity="1">
@@ -51,7 +51,7 @@
           </methods>
           <lines>
             <line number="4" hits="0" branch="False" />
-            <line number="5" hits="4" branch="False" />
+            <line number="5" hits="6" branch="False" />
             <line number="6" hits="0" branch="False" />
             <line number="7" hits="3" branch="False" />
             <line number="8" hits="0" branch="False" />

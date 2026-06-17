@@ -1,5 +1,8 @@
 using System.Data;
+using System.Runtime.CompilerServices;
 using Npgsql;
+
+[assembly: InternalsVisibleTo("OrderService.Tests")]
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("OrderDb")
@@ -133,6 +136,8 @@ static IResult? RequireAdmin(HttpContext httpContext)
         ? null
         : Results.StatusCode(StatusCodes.Status403Forbidden);
 }
+
+public partial class Program { }
 
 record CreateOrderRequest(Guid CustomerId, List<CreateOrderItemRequest> Items);
 record CreateOrderItemRequest(Guid ProductId, int Quantity, decimal UnitPrice);

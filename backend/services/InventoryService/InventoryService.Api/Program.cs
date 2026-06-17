@@ -1,5 +1,8 @@
 using System.Data;
+using System.Runtime.CompilerServices;
 using Npgsql;
+
+[assembly: InternalsVisibleTo("InventoryService.Tests")]
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +64,8 @@ app.MapDelete("/api/inventory/products/{productId:guid}", (Guid productId, Inven
 });
 
 app.Run();
+
+public partial class Program { }
 
 record CreateInventoryProductRequest(string Sku, string Name, string Category, decimal Price, string Image, List<string> Colors, List<string> Measures, int Available, int Reserved, string SupplierName);
 record UpdateInventoryProductRequest(string? Sku, string? Name, string? Category, decimal? Price, string? Image, List<string>? Colors, List<string>? Measures, int? Available, int? Reserved, string? SupplierName);

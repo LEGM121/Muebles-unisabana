@@ -1,5 +1,8 @@
 using System.Data;
+using System.Runtime.CompilerServices;
 using Npgsql;
+
+[assembly: InternalsVisibleTo("CartService.Tests")]
 
 var builder = WebApplication.CreateBuilder(args);
 // --- AGREGA ESTO AQUÍ ---
@@ -132,6 +135,8 @@ static IResult? RequireOwnerOrAdmin(HttpContext httpContext, Guid ownerId)
 
     return null;
 }
+
+public partial class Program { }
 
 record AddCartItemRequest(string CustomerId, string ProductId, int Quantity, decimal UnitPrice, string? ProductName);
 record CartResponse(Guid Id, Guid CustomerId, List<CartItemResponse> Items, decimal TotalAmount);

@@ -1,10 +1,13 @@
 using System.Data;
 using System.Net;
 using System.Net.Mail;
+using System.Runtime.CompilerServices;
 using BCrypt.Net;
 using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+
+[assembly: InternalsVisibleTo("AuthService.Tests")]
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("AuthDb") ?? "Data Source=auth.db";
@@ -222,6 +225,8 @@ static IResult? RequireAdmin(HttpContext httpContext)
         ? null
         : Results.StatusCode(StatusCodes.Status403Forbidden);
 }
+
+public partial class Program { }
 
 record RegisterRequest(string Email, string FullName, string Identification, string Password, string? Role);
 record LoginRequest(string Email, string Password);
