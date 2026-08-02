@@ -6,4 +6,4 @@ coverage/
 .vscode/
 .idea/
 **/obj/
-**/bin/
+**/bin/.env
