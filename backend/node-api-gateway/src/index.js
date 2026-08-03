@@ -5,12 +5,12 @@ const app = express();
 const port = Number(process.env.PORT || 9090);
 
 const services = {
-  auth: process.env.AUTH_SERVICE_URL || 'http://authservice:8081',
-  catalog: process.env.CATALOG_SERVICE_URL || 'http://localhost:8082', // AJUSTE: Apuntando a tu backend C#
-  cart: process.env.CART_SERVICE_URL || 'http://cartservice:8083',
-  orders: process.env.ORDER_SERVICE_URL || 'http://orderservice:8084',
-  payments: process.env.PAYMENT_SERVICE_URL || 'http://paymentservice:8085',
-  inventory: process.env.INVENTORY_SERVICE_URL || 'http://inventoryservice:8086'
+  auth: process.env.AUTH_SERVICE_URL || 'http://authservice:8080',
+  catalog: process.env.CATALOG_SERVICE_URL || 'http://localhost:8080', // AJUSTE: Apuntando a tu backend C#
+  cart: process.env.CART_SERVICE_URL || 'http://cartservice:8080',
+  orders: process.env.ORDER_SERVICE_URL || 'http://orderservice:8080',
+  payments: process.env.PAYMENT_SERVICE_URL || 'http://paymentservice:8080',
+  inventory: process.env.INVENTORY_SERVICE_URL || 'http://inventoryservice:8080'
 };
 
 app.use(cors({
