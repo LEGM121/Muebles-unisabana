@@ -11,7 +11,7 @@ databases=(
 )
 
 for database in "${databases[@]}"; do
-  echo "Creando o verificando: $database"
+  echo "Creando o verificando base: $database"
 
   psql \
     --username "$POSTGRES_USER" \
@@ -25,3 +25,5 @@ for database in "${databases[@]}"; do
       )\gexec
 EOSQL
 done
+
+echo "Bases del laboratorio listas."

@@ -7,3 +7,15 @@ coverage/
 .idea/
 **/obj/
 **/bin/.env
+
+# Entorno local del laboratorio
+.env.lab
+
+# Respaldos locales de PostgreSQL
+backups/*.sql
+
+# Entorno local del laboratorio
+.env.lab
+
+# Respaldos locales
+backups/*.sql
