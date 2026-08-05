@@ -1,21 +1,39 @@
+# ==========================================
+# Node.js
+# ==========================================
 node_modules/
 dist/
 coverage/
-.env
 *.log
+
+# ==========================================
+# Variables de entorno
+# ==========================================
+.env
+.env.lab
+
+# ==========================================
+# Visual Studio Code
+# ==========================================
 .vscode/
 .idea/
+
+# ==========================================
+# .NET
+# ==========================================
+**/bin/
 **/obj/
-**/bin/.env
 
-# Entorno local del laboratorio
-.env.lab
+# ==========================================
+# Bases SQLite
+# ==========================================
+*.db
+*.db-shm
+*.db-wal
 
-# Respaldos locales de PostgreSQL
+# ==========================================
+# Respaldos
+# ==========================================
 backups/*.sql
-
-# Entorno local del laboratorio
-.env.lab
-
-# Respaldos locales
-backups/*.sql
+# Docker
+.docker/

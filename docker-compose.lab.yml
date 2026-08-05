@@ -29,9 +29,56 @@ services:
       retries: 10
       start_period: 10s
 
+
+  inventoryservice:
+    image: proyecto-muebles/inventoryservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${INVENTORY_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${INVENTORY_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  catalogservice:
+    image: proyecto-muebles/catalogservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+
+      # Temporalmente CatalogService consulta la misma base
+      # que InventoryService porque lee inventory_products.
+      DATABASE_URL: Host=postgres;Port=5432;Database=${INVENTORY_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${CATALOG_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inventoryservice:
+        condition: service_started
+
+
 networks:
   lab-network:
     driver: bridge
+
 
 volumes:
   postgres_lab_data:
