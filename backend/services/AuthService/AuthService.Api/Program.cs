@@ -2,12 +2,13 @@ using System.Data;
 using System.Net;
 using System.Net.Mail;
 using BCrypt.Net;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("AuthDb") ?? "Data Source=auth.db";
+var connectionString = builder.Configuration["DATABASE_URL"] ?? "Host=localhost;Port=5433;Database=auth_db;Username=postgres;Password=postgres;Include Error Detail=true";
+
 
 builder.Services.AddSingleton(new AuthDb(connectionString));
 builder.Services.AddSingleton<PasswordRecoveryNotifier>();
@@ -310,7 +311,7 @@ sealed class PasswordRecoveryNotifier
 
 sealed class AuthDb
 {
-    private readonly string _connectionString;
+   private readonly string _connectionString;
 
     public AuthDb(string connectionString)
     {
@@ -319,64 +320,73 @@ sealed class AuthDb
 
     public void Initialize()
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
+        command.CommandText = """
             CREATE TABLE IF NOT EXISTS Users (
-                Id TEXT PRIMARY KEY,
+                Id UUID PRIMARY KEY,
                 Email TEXT NOT NULL UNIQUE,
                 FullName TEXT NOT NULL,
                 Identification TEXT NOT NULL DEFAULT '',
                 PasswordHash TEXT NOT NULL,
                 Role TEXT NOT NULL,
-                CreatedAt TEXT NOT NULL,
-                IsActive INTEGER NOT NULL
+                CreatedAt TIMESTAMPTZ NOT NULL,
+                IsActive BOOLEAN NOT NULL
             );
-        ";
+
+            ALTER TABLE Users
+            ADD COLUMN IF NOT EXISTS Identification TEXT NOT NULL DEFAULT '';
+            """;
+
         command.ExecuteNonQuery();
 
-        EnsureIdentificationColumn(connection);
         SeedDefaultAdmin(connection);
     }
 
     public void CreateUser(UserRecord user)
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO Users (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
-            VALUES ($id, $email, $fullName, $identification, $passwordHash, $role, $createdAt, $isActive);
-        ";
-        command.Parameters.AddWithValue("$id", user.Id.ToString());
-        command.Parameters.AddWithValue("$email", user.Email);
-        command.Parameters.AddWithValue("$fullName", user.FullName);
-        command.Parameters.AddWithValue("$identification", user.Identification);
-        command.Parameters.AddWithValue("$passwordHash", user.PasswordHash);
-        command.Parameters.AddWithValue("$role", user.Role);
-        command.Parameters.AddWithValue("$createdAt", user.CreatedAt.ToString("O"));
-        command.Parameters.AddWithValue("$isActive", user.IsActive ? 1 : 0);
+        command.CommandText = """
+            INSERT INTO Users
+                (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
+            VALUES
+                (@id, @email, @fullName, @identification, @passwordHash, @role, @createdAt, @isActive);
+            """;
+
+        command.Parameters.AddWithValue("@id", user.Id);
+        command.Parameters.AddWithValue("@email", user.Email);
+        command.Parameters.AddWithValue("@fullName", user.FullName);
+        command.Parameters.AddWithValue("@identification", user.Identification);
+        command.Parameters.AddWithValue("@passwordHash", user.PasswordHash);
+        command.Parameters.AddWithValue("@role", user.Role);
+        command.Parameters.AddWithValue("@createdAt", user.CreatedAt);
+        command.Parameters.AddWithValue("@isActive", user.IsActive);
+
         command.ExecuteNonQuery();
     }
 
     public UserRecord? GetUserById(Guid id)
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
+        command.CommandText = """
             SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
-            WHERE Id = $id
+            WHERE Id = @id
             LIMIT 1;
-        ";
-        command.Parameters.AddWithValue("$id", id.ToString());
+            """;
+
+        command.Parameters.AddWithValue("@id", id);
 
         using var reader = command.ExecuteReader();
+
         if (!reader.Read())
         {
             return null;
@@ -387,19 +397,21 @@ sealed class AuthDb
 
     public UserRecord? GetUserByEmail(string email)
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
+        command.CommandText = """
             SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
-            WHERE Email = $email
+            WHERE Email = @email
             LIMIT 1;
-        ";
-        command.Parameters.AddWithValue("$email", email);
+            """;
+
+        command.Parameters.AddWithValue("@email", email);
 
         using var reader = command.ExecuteReader();
+
         if (!reader.Read())
         {
             return null;
@@ -411,17 +423,19 @@ sealed class AuthDb
     public List<UserRecord> GetUsers()
     {
         var users = new List<UserRecord>();
-        using var connection = new SqliteConnection(_connectionString);
+
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
+        command.CommandText = """
             SELECT Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive
             FROM Users
             ORDER BY CreatedAt DESC;
-        ";
+            """;
 
         using var reader = command.ExecuteReader();
+
         while (reader.Read())
         {
             users.Add(MapUser(reader));
@@ -432,106 +446,115 @@ sealed class AuthDb
 
     public void UpdateUser(UserRecord user)
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = @"
+        command.CommandText = """
             UPDATE Users
-            SET Email = $email,
-                FullName = $fullName,
-                Identification = $identification,
-                PasswordHash = $passwordHash,
-                Role = $role,
-                IsActive = $isActive
-            WHERE Id = $id;
-        ";
-        command.Parameters.AddWithValue("$id", user.Id.ToString());
-        command.Parameters.AddWithValue("$email", user.Email);
-        command.Parameters.AddWithValue("$fullName", user.FullName);
-        command.Parameters.AddWithValue("$identification", user.Identification);
-        command.Parameters.AddWithValue("$passwordHash", user.PasswordHash);
-        command.Parameters.AddWithValue("$role", user.Role);
-        command.Parameters.AddWithValue("$isActive", user.IsActive ? 1 : 0);
+            SET Email = @email,
+                FullName = @fullName,
+                Identification = @identification,
+                PasswordHash = @passwordHash,
+                Role = @role,
+                IsActive = @isActive
+            WHERE Id = @id;
+            """;
+
+        command.Parameters.AddWithValue("@id", user.Id);
+        command.Parameters.AddWithValue("@email", user.Email);
+        command.Parameters.AddWithValue("@fullName", user.FullName);
+        command.Parameters.AddWithValue("@identification", user.Identification);
+        command.Parameters.AddWithValue("@passwordHash", user.PasswordHash);
+        command.Parameters.AddWithValue("@role", user.Role);
+        command.Parameters.AddWithValue("@isActive", user.IsActive);
+
         command.ExecuteNonQuery();
     }
 
     public void DeleteUser(Guid id)
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection = new NpgsqlConnection(_connectionString);
         connection.Open();
 
         using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Users WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", id.ToString());
+        command.CommandText = "DELETE FROM Users WHERE Id = @id;";
+        command.Parameters.AddWithValue("@id", id);
+
         command.ExecuteNonQuery();
     }
 
     private static UserRecord MapUser(IDataRecord record)
     {
         return new UserRecord(
-            Guid.Parse(record.GetString(0)),
+            record.GetGuid(0),
             record.GetString(1),
             record.GetString(2),
             record.GetString(3),
             record.GetString(4),
             record.GetString(5),
-            DateTime.Parse(record.GetString(6)),
-            record.GetInt32(7) == 1);
+            record.GetDateTime(6),
+            record.GetBoolean(7));
     }
 
-    private static void EnsureIdentificationColumn(SqliteConnection connection)
-    {
-        using var infoCommand = connection.CreateCommand();
-        infoCommand.CommandText = "PRAGMA table_info(Users);";
-
-        var hasIdentification = false;
-        using (var reader = infoCommand.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                if (string.Equals(reader.GetString(1), "Identification", StringComparison.OrdinalIgnoreCase))
-                {
-                    hasIdentification = true;
-                    break;
-                }
-            }
-        }
-
-        if (hasIdentification)
-        {
-            return;
-        }
-
-        using var alterCommand = connection.CreateCommand();
-        alterCommand.CommandText = "ALTER TABLE Users ADD COLUMN Identification TEXT NOT NULL DEFAULT '';";
-        alterCommand.ExecuteNonQuery();
-    }
-
-    private static void SeedDefaultAdmin(SqliteConnection connection)
+    private static void SeedDefaultAdmin(NpgsqlConnection connection)
     {
         using var existsCommand = connection.CreateCommand();
-        existsCommand.CommandText = "SELECT COUNT(1) FROM Users WHERE Email = $email;";
-        existsCommand.Parameters.AddWithValue("$email", "admin@muebles.com");
-        var exists = Convert.ToInt32(existsCommand.ExecuteScalar()) > 0;
+        existsCommand.CommandText =
+            "SELECT COUNT(1) FROM Users WHERE Email = @email;";
+
+        existsCommand.Parameters.AddWithValue(
+            "@email",
+            "admin@muebles.com");
+
+        var exists =
+            Convert.ToInt32(existsCommand.ExecuteScalar()) > 0;
+
         if (exists)
         {
             return;
         }
 
         using var insertCommand = connection.CreateCommand();
-        insertCommand.CommandText = @"
-            INSERT INTO Users (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
-            VALUES ($id, $email, $fullName, $identification, $passwordHash, $role, $createdAt, $isActive);
-        ";
-        insertCommand.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
-        insertCommand.Parameters.AddWithValue("$email", "admin@muebles.com");
-        insertCommand.Parameters.AddWithValue("$fullName", "Administrador");
-        insertCommand.Parameters.AddWithValue("$identification", "admin");
-        insertCommand.Parameters.AddWithValue("$passwordHash", BCrypt.Net.BCrypt.HashPassword("Admin123*"));
-        insertCommand.Parameters.AddWithValue("$role", "Admin");
-        insertCommand.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
-        insertCommand.Parameters.AddWithValue("$isActive", 1);
+        insertCommand.CommandText = """
+            INSERT INTO Users
+                (Id, Email, FullName, Identification, PasswordHash, Role, CreatedAt, IsActive)
+            VALUES
+                (@id, @email, @fullName, @identification, @passwordHash, @role, @createdAt, @isActive);
+            """;
+
+        insertCommand.Parameters.AddWithValue(
+            "@id",
+            Guid.NewGuid());
+
+        insertCommand.Parameters.AddWithValue(
+            "@email",
+            "admin@muebles.com");
+
+        insertCommand.Parameters.AddWithValue(
+            "@fullName",
+            "Administrador");
+
+        insertCommand.Parameters.AddWithValue(
+            "@identification",
+            "admin");
+
+        insertCommand.Parameters.AddWithValue(
+            "@passwordHash",
+            BCrypt.Net.BCrypt.HashPassword("Admin123*"));
+
+        insertCommand.Parameters.AddWithValue(
+            "@role",
+            "Admin");
+
+        insertCommand.Parameters.AddWithValue(
+            "@createdAt",
+            DateTime.UtcNow);
+
+        insertCommand.Parameters.AddWithValue(
+            "@isActive",
+            true);
+
         insertCommand.ExecuteNonQuery();
     }
-}
+} 
