@@ -99,7 +99,7 @@ jobs:
 
       - name: Verify Gateway
         run: |
-          curl --fail http://localhost:9090 || exit 1
+          curl --fail http://localhost:9090/health
 
       - name: Verify Frontend
         run: |
