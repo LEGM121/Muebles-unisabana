@@ -14,9 +14,17 @@ const services = {
 };
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3100'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-User-Role'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-User-Id',
+    'X-User-Role'
+  ],
   credentials: true
 }));
 
