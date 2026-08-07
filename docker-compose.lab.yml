@@ -125,7 +125,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-  
+
   authservice:
     image: proyecto-muebles/authservice:lab
     restart: unless-stopped
@@ -145,6 +145,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  api-gateway:
+    image: proyecto-muebles/api-gateway:lab
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: Production
+      PORT: 9090
+
+      AUTH_SERVICE_URL: http://authservice:8080
+      CATALOG_SERVICE_URL: http://catalogservice:8080
+      CART_SERVICE_URL: http://cartservice:8080
+      ORDER_SERVICE_URL: http://orderservice:8080
+      PAYMENT_SERVICE_URL: http://paymentservice:8080
+      INVENTORY_SERVICE_URL: http://inventoryservice:8080
+
+    ports:
+      - "${GATEWAY_PORT}:9090"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      - authservice
+      - catalogservice
+      - cartservice
+      - orderservice
+      - paymentservice
+      - inventoryservice
 
 networks:
   lab-network:
