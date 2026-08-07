@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authservice
+  namespace: muebles
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: authservice
+
+  template:
+    metadata:
+      labels:
+        app: authservice
+
+    spec:
+      containers:
+      - name: authservice
+
+        image: TU_USUARIO/authservice:latest
+
+        ports:
+        - containerPort: 8081
+
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Development
+
+        - name: ASPNETCORE_URLS
+          value: http://+:8081
+
+        - name: DATABASE_URL
+          value: Host=postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
