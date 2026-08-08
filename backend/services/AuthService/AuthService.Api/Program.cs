@@ -557,4 +557,9 @@ sealed class AuthDb
 
         insertCommand.ExecuteNonQuery();
     }
+
+   
+
 } 
+
+ public partial class Program { }
