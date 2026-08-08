@@ -1,5 +1,4 @@
 using BCrypt.Net;
-using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace AuthService.Tests;
