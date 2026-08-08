@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: authservice
-  namespace: muebles
 
 spec:
   replicas: 1
@@ -19,6 +19,7 @@ spec:
     spec:
       containers:
         - name: authservice
+
           image: wilee21/authservice:latest
 
           ports:
@@ -26,10 +27,10 @@ spec:
 
           env:
             - name: ASPNETCORE_ENVIRONMENT
-              value: "Development"
+              value: Development
 
             - name: ASPNETCORE_URLS
-              value: "http://+:8081"
+              value: http://+:8081
 
             - name: DATABASE_URL
-              value: "Host=postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres"
+              value: Host=postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
