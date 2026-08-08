@@ -39,3 +39,6 @@ backups/*.sql
 .docker/
 
 *.sqlite-backup
+# .NET build artifacts
+**/bin/
+**/obj/
