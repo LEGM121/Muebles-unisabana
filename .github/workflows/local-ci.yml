@@ -1,5 +1,7 @@
 name: CI Proyecto Muebles
-
+permissions:
+  contents: read
+  packages: write
 on:
   push:
     branches:
@@ -129,60 +131,83 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build AuthService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/AuthService
-          push: false
-          tags: proyecto-muebles/authservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-authservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-authservice:${{ github.sha }}
 
       - name: Build CatalogService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/CatalogService
-          push: false
-          tags: proyecto-muebles/catalogservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-catalogservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-catalogservice:${{ github.sha }}
 
       - name: Build InventoryService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/InventoryService
-          push: false
-          tags: proyecto-muebles/inventoryservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-inventoryservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-inventoryservice:${{ github.sha }}
 
       - name: Build CartService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/CartService
-          push: false
-          tags: proyecto-muebles/cartservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-cartservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-cartservice:${{ github.sha }}
 
       - name: Build OrderService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/OrderService
-          push: false
-          tags: proyecto-muebles/orderservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-orderservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-orderservice:${{ github.sha }}
 
       - name: Build PaymentService
         uses: docker/build-push-action@v6
         with:
           context: backend/services/PaymentService
-          push: false
-          tags: proyecto-muebles/paymentservice:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-paymentservice:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-paymentservice:${{ github.sha }}
 
       - name: Build API Gateway
         uses: docker/build-push-action@v6
         with:
           context: backend/node-api-gateway
-          push: false
-          tags: proyecto-muebles/api-gateway:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-api-gateway:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-api-gateway:${{ github.sha }}
 
       - name: Build Frontend
         uses: docker/build-push-action@v6
         with:
           context: frontend
-          push: false
-          tags: proyecto-muebles/frontend:ci
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/muebles-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/muebles-frontend:${{ github.sha }}
           build-args: |
             VITE_API_URL=http://localhost:9190
