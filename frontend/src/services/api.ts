@@ -351,9 +351,12 @@ async function captureApiCall(path: string, init: RequestInit | undefined, respo
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const session = sessionStorageService.load();
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(init?.headers ?? {})
-  };
+  ...(init?.headers ?? {})
+};
+
+   if (init?.body) {
+  (headers as Record<string, string>)['Content-Type'] = 'application/json';
+   }
 
   if (session && session.id) {
     headers['X-User-Id'] = session.id;

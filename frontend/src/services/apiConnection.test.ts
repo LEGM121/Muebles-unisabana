@@ -19,14 +19,14 @@ describe('api service connection routes', () => {
 
     await api.getCatalog();
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9190/api/catalog',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json'
-        })
-      })
-    );
+   expect(mockFetch).toHaveBeenCalledWith(
+  'http://localhost:9190/api/catalog',
+  expect.objectContaining({
+    headers: expect.not.objectContaining({
+      'Content-Type': 'application/json'
+    })
+  })
+);
   });
 
   it('connects to AuthService login through the gateway', async () => {
