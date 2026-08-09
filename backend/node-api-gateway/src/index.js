@@ -17,6 +17,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3100'
+    'https://muebles-frontend-latest.onrender.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
