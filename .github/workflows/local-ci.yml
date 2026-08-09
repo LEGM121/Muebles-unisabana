@@ -210,4 +210,4 @@ jobs:
             ghcr.io/legm121/muebles-frontend:latest
             ghcr.io/legm121/muebles-frontend:${{ github.sha }}
           build-args: |
-            VITE_API_URL=http://localhost:9190
+            VITE_API_URL=https://muebles-api-gateway-latest.onrender.com
