@@ -1,8 +1,11 @@
+using System.Runtime.CompilerServices;
 using Npgsql;
 using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+
+[assembly: InternalsVisibleTo("PaymentService.Tests")]
 
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -75,6 +78,8 @@ app.MapDelete("/api/payments/{paymentId:guid}", (Guid paymentId, PaymentDb db) =
 });
 
 app.Run();
+
+public partial class Program { }
 
 record AuthorizePaymentRequest(Guid OrderId, string CustomerId, string CustomerName, string CustomerEmail, string PaymentMethod, List<PaymentItemRequest> Items);
 record PaymentItemRequest(Guid ProductId, string ProductName, int Quantity, decimal UnitPrice);

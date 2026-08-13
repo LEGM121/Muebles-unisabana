@@ -1,17 +1,17 @@
 # Reporte E2E de compra
 
-Fecha de ejecucion: 2026-06-15T20:38:48.503Z
+Fecha de ejecucion: 2026-08-05T01:50:03.567Z
 
 ## Datos de compra
 
 - Datos generados durante la ejecucion del test, sin depender de registros quemados.
-- Cliente: Cliente compra b23b8ddc
-- Correo: cliente.b23b8ddc@muebles.test
-- Producto: Producto compra 50aadf3c
+- Cliente: Cliente compra ab77ce68
+- Correo: cliente.ab77ce68@muebles.test
+- Producto: Producto compra 48e7ca7c
 - Precio unitario: $1800.00
-- Orden: 5db50522-2c9c-47c5-8584-3e9370292831
-- Pago: ab174bf8-0481-41f6-b0cf-946af8c3f548
-- Factura: FAC-E2E-ab174bf8
+- Orden: b36fccde-81da-44f2-95ca-889c4f53f5a3
+- Pago: ee55921f-a042-47b8-b639-0669550de261
+- Factura: FAC-E2E-ee55921f
 - Total pagado: $2088.00
 
 ## Flujo validado

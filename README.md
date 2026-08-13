@@ -359,6 +359,12 @@ Luego realizar el flujo:
 - `docs/guia_casos_prueba_presentacion.md`
 - `docs/guia_validacion_pruebas_y_pipeline.md`
 - `docs/pruebas_catalogo.md`
+- ## En el cuerpo o estructura se cuenta con
+- defectos// unidad 6
+- pruebas de cargas expuextas en clase
+- pruebas unitarias, integrales
+- el github tiene los worflow de los pipelines implementados
+- 
 
 ## Estado del proyecto
 
