@@ -19,14 +19,14 @@ describe('api service connection routes', () => {
 
     await api.getCatalog();
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/catalog',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json'
-        })
-      })
-    );
+   expect(mockFetch).toHaveBeenCalledWith(
+  'http://localhost:9190/api/catalog',
+  expect.objectContaining({
+    headers: expect.not.objectContaining({
+      'Content-Type': 'application/json'
+    })
+  })
+);
   });
 
   it('connects to AuthService login through the gateway', async () => {
@@ -44,7 +44,7 @@ describe('api service connection routes', () => {
     await api.login({ email: 'cliente@muebles.com', password: 'Password123!' });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/auth/login',
+      'http://localhost:9190/api/auth/login',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ email: 'cliente@muebles.com', password: 'Password123!' })
@@ -70,7 +70,7 @@ describe('api service connection routes', () => {
     await api.getCart('22222222-2222-2222-2222-222222222222');
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/cart/22222222-2222-2222-2222-222222222222',
+      'http://localhost:9190/api/cart/22222222-2222-2222-2222-222222222222',
       expect.objectContaining({
         headers: expect.objectContaining({
           'X-User-Id': '22222222-2222-2222-2222-222222222222',
@@ -99,7 +99,7 @@ describe('api service connection routes', () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/orders',
+      'http://localhost:9190/api/orders',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -134,7 +134,7 @@ describe('api service connection routes', () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/payments/authorize',
+      'http://localhost:9190/api/payments/authorize',
       expect.objectContaining({
         method: 'POST'
       })
@@ -147,7 +147,7 @@ describe('api service connection routes', () => {
     await api.getInventoryProducts();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9090/api/inventory/products',
+      'http://localhost:9190/api/inventory/products',
       expect.any(Object)
     );
   });

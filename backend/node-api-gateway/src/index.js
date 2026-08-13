@@ -13,10 +13,27 @@ const services = {
   inventory: process.env.INVENTORY_SERVICE_URL || 'http://inventoryservice:8086'
 };
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3100',
+  'https://muebles-frontend-latest.onrender.com'
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin no permitido por CORS: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-User-Role'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-User-Id',
+    'X-User-Role'
+  ],
   credentials: true
 }));
 

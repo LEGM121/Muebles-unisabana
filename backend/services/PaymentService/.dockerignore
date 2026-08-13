@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/TestResults
+*.db
+*.db-shm
+*.db-wal
+*.db.backup
+.git
+.gitignore
+.vscode
+README.md

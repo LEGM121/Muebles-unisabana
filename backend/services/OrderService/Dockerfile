@@ -2,20 +2,26 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /src
 
-COPY . .
+COPY OrderService.Api/OrderService.Api.csproj OrderService.Api/
 
 RUN dotnet restore OrderService.Api/OrderService.Api.csproj
 
-RUN dotnet publish OrderService.Api/OrderService.Api.csproj \
-    -c Release \
-    -o /app/publish
+COPY . .
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+RUN dotnet publish OrderService.Api/OrderService.Api.csproj \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
 WORKDIR /app
 
 COPY --from=build /app/publish .
 
-EXPOSE 8084
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 
-ENTRYPOINT ["dotnet", "OrderService.Api.dll"]
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet","OrderService.Api.dll"]

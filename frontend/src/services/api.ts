@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:9090';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:9190';
 const E2E_CAPTURE_KEY = 'muebles.e2e.capture.enabled';
 const E2E_CAPTURE_ENTRIES_KEY = 'muebles.e2e.capture.entries';
 const E2E_CAPTURE_REPORT_KEY = 'muebles.e2e.capture.report';
@@ -351,9 +351,12 @@ async function captureApiCall(path: string, init: RequestInit | undefined, respo
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const session = sessionStorageService.load();
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(init?.headers ?? {})
-  };
+  ...(init?.headers ?? {})
+};
+
+   if (init?.body) {
+  (headers as Record<string, string>)['Content-Type'] = 'application/json';
+   }
 
   if (session && session.id) {
     headers['X-User-Id'] = session.id;

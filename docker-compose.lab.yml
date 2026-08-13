@@ -1,0 +1,196 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DEFAULT_DATABASE}
+
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:5432"
+
+    volumes:
+      - postgres_lab_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - lab-network
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DEFAULT_DATABASE}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  inventoryservice:
+    image: proyecto-muebles/inventoryservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${INVENTORY_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${INVENTORY_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  catalogservice:
+    image: proyecto-muebles/catalogservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${INVENTORY_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${CATALOG_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inventoryservice:
+        condition: service_started
+
+  cartservice:
+    image: proyecto-muebles/cartservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${CART_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${CART_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  orderservice:
+    image: proyecto-muebles/orderservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${ORDER_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${ORDER_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+  paymentservice:
+    image: proyecto-muebles/paymentservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${PAYMENT_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+
+    ports:
+      - "${PAYMENT_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  authservice:
+    image: proyecto-muebles/authservice:lab
+    restart: unless-stopped
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DATABASE_URL: Host=postgres;Port=5432;Database=${AUTH_DATABASE};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true
+      ADMIN_EMAIL: admin@muebles.com
+
+    ports:
+      - "${AUTH_PORT}:8080"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api-gateway:
+    image: proyecto-muebles/api-gateway:lab
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: Production
+      PORT: 9090
+
+      AUTH_SERVICE_URL: http://authservice:8080
+      CATALOG_SERVICE_URL: http://catalogservice:8080
+      CART_SERVICE_URL: http://cartservice:8080
+      ORDER_SERVICE_URL: http://orderservice:8080
+      PAYMENT_SERVICE_URL: http://paymentservice:8080
+      INVENTORY_SERVICE_URL: http://inventoryservice:8080
+
+    ports:
+      - "${GATEWAY_PORT}:9090"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      - authservice
+      - catalogservice
+      - cartservice
+      - orderservice
+      - paymentservice
+      - inventoryservice
+
+  frontend:
+    image: proyecto-muebles/frontend:lab
+    restart: unless-stopped
+
+    ports:
+      - "${FRONTEND_PORT}:80"
+
+    networks:
+      - lab-network
+
+    depends_on:
+      - api-gateway
+
+networks:
+  lab-network:
+    driver: bridge
+
+volumes:
+  postgres_lab_data:

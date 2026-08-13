@@ -13,5 +13,12 @@ var app = builder.Build();
 
 app.MapGet("/api/catalog", CatalogEndpoints.GetCatalog);
 app.MapPost("/api/catalog/validate", CatalogEndpoints.ValidateProduct);
-
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new
+    {
+        service = "CatalogService",
+        database = "PostgreSQL"
+    });
+});
 app.Run();

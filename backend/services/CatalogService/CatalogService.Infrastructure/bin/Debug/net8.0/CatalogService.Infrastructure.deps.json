@@ -1,0 +1,56 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "CatalogService.Infrastructure/1.0.0": {
+        "dependencies": {
+          "CatalogService.Application": "1.0.0",
+          "CatalogService.Domain": "1.0.0"
+        },
+        "runtime": {
+          "CatalogService.Infrastructure.dll": {}
+        }
+      },
+      "CatalogService.Application/1.0.0": {
+        "dependencies": {
+          "CatalogService.Domain": "1.0.0"
+        },
+        "runtime": {
+          "CatalogService.Application.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "CatalogService.Domain/1.0.0": {
+        "runtime": {
+          "CatalogService.Domain.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CatalogService.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CatalogService.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CatalogService.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
