@@ -5,11 +5,11 @@ permissions:
 on:
   push:
     branches:
-      - laboratorio/dockerizacion
+      - produccion
 
   pull_request:
     branches:
-      - laboratorio/dockerizacion
+      - produccion
 
   workflow_dispatch:
 
