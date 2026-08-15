@@ -260,6 +260,29 @@ backend/services/CatalogService/
 - .NET SDK 8.
 - Docker y Docker Compose.
 
+## Versionamiento semantico centralizado
+
+El proyecto usa SemVer con una sola version en la raiz del monorepo (`package.json`).
+
+- `MAJOR`: cambios incompatibles.
+- `MINOR`: nuevas funcionalidades compatibles.
+- `PATCH`: correcciones compatibles.
+
+Comandos desde la raiz:
+
+```powershell
+npm.cmd run version:patch
+npm.cmd run version:minor
+npm.cmd run version:major
+```
+
+Estos comandos actualizan la version de la raiz y sincronizan:
+
+- `frontend\package.json` y `frontend\package-lock.json`
+- `backend\node-api-gateway\package.json` y `backend\node-api-gateway\package-lock.json`
+- `backend\services\Directory.Build.props` para servicios .NET
+- tags de imagen en `docker-compose.lab.yml` usando `${APP_VERSION}`
+
 ## Ejecucion local
 
 ### 1. Levantar backend, gateway y base de datos
@@ -359,6 +382,12 @@ Luego realizar el flujo:
 - `docs/guia_casos_prueba_presentacion.md`
 - `docs/guia_validacion_pruebas_y_pipeline.md`
 - `docs/pruebas_catalogo.md`
+- ## En el cuerpo o estructura se cuenta con
+- defectos// unidad 6
+- pruebas de cargas expuextas en clase
+- pruebas unitarias, integrales
+- el github tiene los worflow de los pipelines implementados
+- 
 
 ## Estado del proyecto
 
