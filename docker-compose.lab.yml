@@ -30,7 +30,7 @@ services:
       start_period: 10s
 
   inventoryservice:
-    image: proyecto-muebles/inventoryservice:lab
+    image: proyecto-muebles/inventoryservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -49,7 +49,7 @@ services:
         condition: service_healthy
 
   catalogservice:
-    image: proyecto-muebles/catalogservice:lab
+    image: proyecto-muebles/catalogservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -70,7 +70,7 @@ services:
         condition: service_started
 
   cartservice:
-    image: proyecto-muebles/cartservice:lab
+    image: proyecto-muebles/cartservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -89,7 +89,7 @@ services:
         condition: service_healthy
 
   orderservice:
-    image: proyecto-muebles/orderservice:lab
+    image: proyecto-muebles/orderservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -108,7 +108,7 @@ services:
         condition: service_healthy
     
   paymentservice:
-    image: proyecto-muebles/paymentservice:lab
+    image: proyecto-muebles/paymentservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -127,7 +127,7 @@ services:
         condition: service_healthy
 
   authservice:
-    image: proyecto-muebles/authservice:lab
+    image: proyecto-muebles/authservice:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -147,7 +147,7 @@ services:
         condition: service_healthy
 
   api-gateway:
-    image: proyecto-muebles/api-gateway:lab
+    image: proyecto-muebles/api-gateway:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     environment:
@@ -176,7 +176,7 @@ services:
       - inventoryservice
 
   frontend:
-    image: proyecto-muebles/frontend:lab
+    image: proyecto-muebles/frontend:${APP_VERSION:-1.0.0}
     restart: unless-stopped
 
     ports:

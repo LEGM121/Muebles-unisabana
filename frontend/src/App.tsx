@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ProductCard } from './components/ProductCard';
 import { CartPanel } from './components/CartPanel';
 import { LoginForm } from './components/LoginForm';
+import packageMetadata from '../package.json';
 import {
   api,
   sessionStorageService,
@@ -24,6 +25,7 @@ import { validateInventoryForm } from './validation/formValidation';
 
 const FALLBACK_CUSTOMER_ID = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PRODUCT_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80';
+const APP_VERSION = `v${packageMetadata.version}`;
 
 type AdminSection =
   | 'dashboard'
@@ -1100,6 +1102,7 @@ const handleLoginSuccess = (payload: {
             <p className="text-sm text-stone-500">Sesión actual: {userName}</p>
             <p className="text-xs text-stone-400">Rol: {userRole}</p>
             {isAuthenticated && <p className="text-xs text-stone-400">Correo: {userEmail}</p>}
+            <p className="text-xs text-stone-400">Versión desplegada: {APP_VERSION}</p>
           </div>
           <div className="flex items-center gap-3">
             {isAuthenticated && (
