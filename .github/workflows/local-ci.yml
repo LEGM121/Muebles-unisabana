@@ -281,8 +281,7 @@ jobs:
       PAYMENT_URL: https://muebles-paymentservice-latest.onrender.com
       INVENTORY_URL: https://muebles-inventoryservice-latest.onrender.com
       GATEWAY_URL: https://muebles-api-gateway-latest.onrender.com
-      FRONTEND_URL: https://proyecto-muebles-frontend.onrender.com
-
+      FRONTEND_URL: https://muebles-frontend-latest.onrender.com
     steps:
       - name: Wait for Render services
         run: |
@@ -383,4 +382,8 @@ jobs:
         run: |
           echo "=========================================="
           echo "Production smoke tests passed"
+<<<<<<< HEAD
           echo "=========================================="
+=======
+          echo "=========================================="
+>>>>>>> 49b80d7 (corregir somke para dejar listo CD)
