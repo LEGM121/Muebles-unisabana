@@ -29,6 +29,14 @@ app.MapPost("/api/auth/register", (HttpContext httpContext, RegisterRequest requ
     {
         return Results.BadRequest(new { message = "Email, password, fullName e identification son obligatorios" });
     }
+if (!IsValidEmail(request.Email))
+{
+    return Results.BadRequest(new
+    {
+        message = "El formato del email no es válido"
+    });
+}
+    
 
     var normalizedEmail = request.Email.Trim().ToLowerInvariant();
     var existingUser = db.GetUserByEmail(normalizedEmail);
@@ -62,6 +70,13 @@ app.MapPost("/api/auth/forgot-password", async (ForgotPasswordRequest request, A
     {
         return Results.BadRequest(new { message = "Email es obligatorio" });
     }
+    if (!IsValidEmail(request.Email))
+{
+    return Results.BadRequest(new
+    {
+        message = "El formato del email no es válido"
+    });
+}
 
     var normalizedEmail = request.Email.Trim().ToLowerInvariant();
     var user = db.GetUserByEmail(normalizedEmail);
@@ -79,6 +94,13 @@ app.MapPost("/api/auth/login", (LoginRequest request, AuthDb db) =>
     if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
     {
         return Results.BadRequest(new { message = "Email y password son obligatorios" });
+    }
+    if (!IsValidEmail(request.Email))
+    {
+    return Results.BadRequest(new
+    {
+        message = "El formato del email no es válido"
+    });
     }
 
     var user = db.GetUserByEmail(request.Email.Trim().ToLowerInvariant());
@@ -224,6 +246,21 @@ static IResult? RequireAdmin(HttpContext httpContext)
         : Results.StatusCode(StatusCodes.Status403Forbidden);
 }
 
+static bool IsValidEmail(string? email)
+{
+    if (string.IsNullOrWhiteSpace(email))
+        return false;
+
+    try
+    {
+        var address = new System.Net.Mail.MailAddress(email.Trim());
+        return address.Address == email.Trim();
+    }
+    catch
+    {
+        return false;
+    }
+}
 record RegisterRequest(string Email, string FullName, string Identification, string Password, string? Role);
 record LoginRequest(string Email, string Password);
 record ForgotPasswordRequest(string Email, string? FullName);
