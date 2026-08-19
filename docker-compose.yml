@@ -20,50 +20,33 @@ services:
       retries: 5
 
   authservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
+    
+    build:
+      context: ./backend/services/AuthService
+      dockerfile: Dockerfile
     container_name: authservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/AuthService:/src
-    command: sh -c "dotnet run --project AuthService.Api/AuthService.Api.csproj --urls=http://0.0.0.0:8081"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
+     ASPNETCORE_ENVIRONMENT: Development
+     ASPNETCORE_URLS: http://+:8081
+     DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
     ports:
-      - "8081:8081"
+        - "8081:8081"
     networks:
-      - app-network
+        - app-network
     depends_on:
       postgres:
         condition: service_healthy
 
-  catalogservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
-    container_name: catalogservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/CatalogService:/src
-    command: sh -c "dotnet run --project CatalogService.Api/CatalogService.Api.csproj --urls=http://0.0.0.0:8082"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
-    ports:
-      - "8082:8082"
-    networks:
-      - app-network
-    depends_on:
-      postgres:
-        condition: service_healthy
+  
 
   cartservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
+    build:
+      context: ./backend/services/CartService
+      dockerfile: Dockerfile
     container_name: cartservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/CartService:/src
-    command: sh -c "dotnet run --project CartService.Api/CartService.Api.csproj --urls=http://0.0.0.0:8083"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8083
       DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
     ports:
       - "8083:8083"
@@ -73,15 +56,32 @@ services:
       postgres:
         condition: service_healthy
 
-  orderservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
-    container_name: orderservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/OrderService:/src
-    command: sh -c "dotnet run --project OrderService.Api/OrderService.Api.csproj --urls=http://0.0.0.0:8084"
+  catalogservice:
+    build:
+      context: ./backend/services/CatalogService
+      dockerfile: Dockerfile
+    container_name: catalogservice
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8082
+      DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
+    ports:
+      - "8082:8082"
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy 
+  
+  
+  orderservice:
+    build:
+      context: ./backend/services/OrderService
+      dockerfile: Dockerfile
+    container_name: orderservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8084
       DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
     ports:
       - "8084:8084"
@@ -90,16 +90,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        
 
   paymentservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
+    build:
+      context: ./backend/services/PaymentService
+      dockerfile: Dockerfile
     container_name: paymentservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/PaymentService:/src
-    command: sh -c "dotnet run --project PaymentService.Api/PaymentService.Api.csproj --urls=http://0.0.0.0:8085"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8085
       DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
     ports:
       - "8085:8085"
@@ -107,17 +107,16 @@ services:
       - app-network
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy  
 
   inventoryservice:
-    image: mcr.microsoft.com/dotnet/sdk:8.0
+    build:
+      context: ./backend/services/InventoryService
+      dockerfile: Dockerfile
     container_name: inventoryservice
-    working_dir: /src
-    volumes:
-      - ./backend/services/InventoryService:/src
-    command: sh -c "dotnet run --project InventoryService.Api/InventoryService.Api.csproj --urls=http://0.0.0.0:8086"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8086
       DATABASE_URL: Host=proyecto-muebles-postgres;Port=5432;Database=muebles_db;Username=postgres;Password=postgres
     ports:
       - "8086:8086"
@@ -127,13 +126,12 @@ services:
       postgres:
         condition: service_healthy
 
+ 
   gateway:
-    image: node:20-alpine
+    build:
+      context: ./backend/node-api-gateway
+      dockerfile: Dockerfile
     container_name: proyecto-muebles-gateway
-    working_dir: /app
-    volumes:
-      - ./backend/node-api-gateway:/app
-    command: sh -c "npm install && npm start"
     environment:
       PORT: "9090"
       AUTH_SERVICE_URL: http://authservice:8081
@@ -154,9 +152,24 @@ services:
       - paymentservice
       - inventoryservice
 
+ 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: proyecto-muebles-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+    networks:
+      - app-network
+        
 networks:
   app-network:
     driver: bridge
 
 volumes:
   postgres_data:
+
+  

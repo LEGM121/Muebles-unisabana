@@ -1,10 +1,13 @@
 using System.Data;
 using System.Net;
 using System.Net.Mail;
+using System.Runtime.CompilerServices;
 using BCrypt.Net;
 using Npgsql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+
+[assembly: InternalsVisibleTo("AuthService.Tests")]
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration["DATABASE_URL"] ?? "Host=localhost;Port=5433;Database=auth_db;Username=postgres;Password=postgres;Include Error Detail=true";
