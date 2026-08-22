@@ -1,8 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = Number(process.env.PORT || 9090);
+const jwtSecret = process.env.JWT_SECRET;
+const jwtIssuer = process.env.JWT_ISSUER || 'muebles-authservice';
+const jwtAudience = process.env.JWT_AUDIENCE || 'muebles-api';
 
 const services = {
   auth: process.env.AUTH_SERVICE_URL || 'http://authservice:8081',
@@ -42,7 +46,57 @@ app.use(express.json());
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'node-api-gateway', port, services });
 });
+function authenticateJwt(req, res, next) {
+  const authorization = req.headers.authorization;
 
+  if (!authorization || !authorization.startsWith('Bearer ')) {
+    return res.status(401).json({
+      message: 'Token de autenticación requerido'
+    });
+  }
+
+  if (!jwtSecret) {
+    console.error('JWT_SECRET no está configurado en API Gateway');
+    return res.status(500).json({
+      message: 'Configuración de autenticación incompleta'
+    });
+  }
+
+  const token = authorization.substring(7);
+
+  try {
+    const payload = jwt.verify(token, jwtSecret, {
+      issuer: jwtIssuer,
+      audience: jwtAudience,
+      algorithms: ['HS256']
+    });
+
+    req.auth = payload;
+
+    // La identidad ya no se confía al navegador.
+    // Se obtiene del JWT previamente validado.
+    req.headers['x-user-id'] = payload.sub;
+
+    const role =
+      payload.role ||
+      payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+
+    req.headers['x-user-role'] = role || 'Customer';
+
+    return next();
+  } catch (error) {
+    return res.status(401).json({
+      message: 'Token inválido o expirado'
+    });
+  }
+}
+app.get('/api/gateway/secure-test', authenticateJwt, (req, res) => {
+  return res.json({
+    message: 'JWT validado por API Gateway',
+    userId: req.headers['x-user-id'],
+    role: req.headers['x-user-role']
+  });
+});
 async function proxyJson(req, res, baseUrl, path, init = {}) {
   try {
     const targetUrl = `${baseUrl}${path}`;
@@ -123,10 +177,10 @@ app.delete('/api/auth/users/:id', (req, res) => proxyJson(req, res, services.aut
 app.get('/api/catalog', (req, res) => proxyJson(req, res, services.catalog, '/api/catalog'));
 
 // --- RUTAS CARRITO ---
-app.get('/api/cart/:customerId', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}`));
-app.post('/api/cart/items', (req, res) => proxyJson(req, res, services.cart, '/api/cart/items', { method: 'POST', body: JSON.stringify(req.body) }));
-app.delete('/api/cart/:customerId/items', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items`, { method: 'DELETE' }));
-app.delete('/api/cart/:customerId/items/:productId', (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items/${req.params.productId}`, { method: 'DELETE' }));
+app.get('/api/cart/:customerId', authenticateJwt, (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}`));
+app.post('/api/cart/items', authenticateJwt,  (req, res) => proxyJson(req, res, services.cart, '/api/cart/items', { method: 'POST', body: JSON.stringify(req.body) }));
+app.delete('/api/cart/:customerId/items', authenticateJwt, (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items`, { method: 'DELETE' }));
+app.delete('/api/cart/:customerId/items/:productId', authenticateJwt, (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items/${req.params.productId}`, { method: 'DELETE' }));
 
 // --- RUTAS ÓRDENES ---
 app.get('/api/orders', (req, res) => proxyJson(req, res, services.orders, '/api/orders'));
