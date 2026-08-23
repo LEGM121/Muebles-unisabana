@@ -183,9 +183,9 @@ app.delete('/api/cart/:customerId/items', authenticateJwt, (req, res) => proxyJs
 app.delete('/api/cart/:customerId/items/:productId', authenticateJwt, (req, res) => proxyJson(req, res, services.cart, `/api/cart/${req.params.customerId}/items/${req.params.productId}`, { method: 'DELETE' }));
 
 // --- RUTAS ÓRDENES ---
-app.get('/api/orders', (req, res) => proxyJson(req, res, services.orders, '/api/orders'));
-app.get('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.orders, `/api/orders/${req.params.orderId}`));
-app.post('/api/orders', (req, res) => proxyJson(req, res, services.orders, '/api/orders', { method: 'POST', body: JSON.stringify(req.body) }));
+app.get('/api/orders', authenticateJwt,(req, res) => proxyJson(req, res, services.orders, '/api/orders'));
+app.get('/api/orders/:orderId',authenticateJwt, (req, res) => proxyJson(req, res, services.orders, `/api/orders/${req.params.orderId}`));
+app.post('/api/orders',authenticateJwt, (req, res) => proxyJson(req, res, services.orders, '/api/orders', { method: 'POST', body: JSON.stringify(req.body) }));
 app.put('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.orders, `/api/orders/${req.params.orderId}`, { method: 'PUT', body: JSON.stringify(req.body) }));
 app.delete('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.orders, `/api/orders/${req.params.orderId}`, { method: 'DELETE' }));
 
@@ -193,7 +193,7 @@ app.delete('/api/orders/:orderId', (req, res) => proxyJson(req, res, services.or
 app.get('/api/payments', (req, res) => proxyJson(req, res, services.payments, '/api/payments'));
 app.get('/api/payments/:paymentId', (req, res) => proxyJson(req, res, services.payments, `/api/payments/${req.params.paymentId}`));
 app.get('/api/payments/:paymentId/invoice/pdf', (req, res) => proxyBinary(req, res, services.payments, `/api/payments/${req.params.paymentId}/invoice/pdf`));
-app.post('/api/payments/authorize', (req, res) => {
+app.post('/api/payments/authorize', authenticateJwt, (req, res) => {
   if (!requireAuthenticatedCustomer(req, res)) return;
   return proxyJson(req, res, services.payments, '/api/payments/authorize', { method: 'POST', body: JSON.stringify(req.body) });
 });
