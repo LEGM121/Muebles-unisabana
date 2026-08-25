@@ -6,15 +6,52 @@ using Npgsql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration["DATABASE_URL"] ?? "Host=localhost;Port=5433;Database=auth_db;Username=postgres;Password=postgres;Include Error Detail=true";
+var jwtSecret = builder.Configuration["JWT_SECRET"];
+var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? "muebles-authservice";
+var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? "muebles-api";
 
+var jwtExpirationMinutes = int.TryParse(
+    builder.Configuration["JWT_EXPIRATION_MINUTES"],
+    out var expirationMinutes)
+    ? expirationMinutes
+    : 60;
 
 builder.Services.AddSingleton(new AuthDb(connectionString));
 builder.Services.AddSingleton<PasswordRecoveryNotifier>();
+builder.Services
+    .AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+
+            ValidateLifetime = true,
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSecret ?? string.Empty)),
+
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
+app.UseAuthentication();
+app.UseAuthorization();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AuthDb>();
@@ -22,6 +59,25 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/health", () => Results.Ok(new { service = "AuthService" }));
+app.MapGet("/api/auth/secure-test", (HttpContext httpContext) =>
+{
+    var userId = httpContext.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+        ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    var email = httpContext.User.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+        ?? httpContext.User.FindFirst(ClaimTypes.Email)?.Value;
+
+    var role = httpContext.User.FindFirst(ClaimTypes.Role)?.Value;
+
+    return Results.Ok(new
+    {
+        message = "JWT válido",
+        userId,
+        email,
+        role
+    });
+})
+.RequireAuthorization();
 
 app.MapPost("/api/auth/register", (HttpContext httpContext, RegisterRequest request, AuthDb db) =>
 {
@@ -115,7 +171,38 @@ app.MapPost("/api/auth/login", (LoginRequest request, AuthDb db) =>
         return Results.Unauthorized();
     }
 
-    var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+   if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    return Results.Problem(
+        "JWT_SECRET no está configurado.",
+        statusCode: StatusCodes.Status500InternalServerError);
+}
+
+var claims = new[]
+{
+    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+    new Claim(JwtRegisteredClaimNames.Email, user.Email),
+    new Claim(ClaimTypes.Role, user.Role)
+};
+
+var key = new SymmetricSecurityKey(
+    Encoding.UTF8.GetBytes(jwtSecret));
+
+var credentials = new SigningCredentials(
+    key,
+    SecurityAlgorithms.HmacSha256);
+
+var expiresAt = DateTime.UtcNow.AddMinutes(jwtExpirationMinutes);
+
+var jwtToken = new JwtSecurityToken(
+    issuer: jwtIssuer,
+    audience: jwtAudience,
+    claims: claims,
+    expires: expiresAt,
+    signingCredentials: credentials);
+
+var token = new JwtSecurityTokenHandler()
+    .WriteToken(jwtToken);
     return Results.Ok(new
     {
         token,
