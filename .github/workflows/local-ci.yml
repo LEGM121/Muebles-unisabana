@@ -61,6 +61,11 @@ jobs:
             --no-restore
 
       - name: Test backend
+        env:
+           JWT_SECRET: "MueblesCiJwtSecret2026_SoloParaPruebas_Automatizadas_123456"
+           JWT_ISSUER: "muebles-authservice"
+           JWT_AUDIENCE: "muebles-api"
+           JWT_EXPIRATION_MINUTES: "60"
         run: |
           dotnet test backend/services/FurnitureStore.sln \
             --configuration Release \
