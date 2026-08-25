@@ -52,7 +52,7 @@ describe('api service connection routes', () => {
     );
   });
 
-  it('sends authenticated customer headers to CartService through the gateway', async () => {
+  it('sends JWT authorization to CartService through the gateway', async () =>  {
     sessionStorageService.save({
       id: '22222222-2222-2222-2222-222222222222',
       email: 'cliente@muebles.com',
@@ -68,16 +68,16 @@ describe('api service connection routes', () => {
     }));
 
     await api.getCart('22222222-2222-2222-2222-222222222222');
-
+    
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:9190/api/cart/22222222-2222-2222-2222-222222222222',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'X-User-Id': '22222222-2222-2222-2222-222222222222',
-          'X-User-Role': 'Customer'
-        })
-      })
-    );
+  'http://localhost:9190/api/cart/22222222-2222-2222-2222-222222222222',
+  expect.objectContaining({
+    headers: expect.objectContaining({
+      'Authorization': 'Bearer token-demo'
+    })
+  })
+);
+  
   });
 
   it('connects to OrderService through the gateway with checkout payload', async () => {

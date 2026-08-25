@@ -69,10 +69,17 @@ export function LoginForm({ onLoginSuccess }: Props) {
         role: response.user.role ?? 'Customer'
       });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No fue posible iniciar sesión');
-    } finally {
-      setLoading(false);
-    }
+     const errorMessage =
+    submitError instanceof Error ? submitError.message : '';
+
+    if (errorMessage.includes('401')) {
+    setError('Credenciales incorrectas. Verifica el correo y la contraseña.');
+    } else {
+    setError(
+      errorMessage || 'No fue posible iniciar sesión. Intenta nuevamente.'
+    );
+   }
+   }
   };
 
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {

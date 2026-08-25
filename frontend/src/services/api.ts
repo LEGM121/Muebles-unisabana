@@ -358,10 +358,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   (headers as Record<string, string>)['Content-Type'] = 'application/json';
    }
 
-  if (session && session.id) {
-    headers['X-User-Id'] = session.id;
-    headers['X-User-Role'] = session.role || 'Customer';
-  }
+  if (session?.token) {
+     headers['Authorization'] = 'Bearer ' + session.token;
+}
 
   const started = performance.now();
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
